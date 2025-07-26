@@ -1,0 +1,167 @@
+-- Nehemías Blade Ball Script: Auto Parry + Hitbox gigante + GUI completa
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+
+local autoParryEnabled = true
+local hitboxEnabled = true
+local connection
+local fakeHitbox
+
+-- GUI
+local screenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+screenGui.Name = "NehemiasAutoParryGUI"
+
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 220, 0, 160)
+frame.Position = UDim2.new(0.5, -110, 0.3, 0)
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 25)
+title.Text = "Nehemías"
+title.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 18
+
+local toggleButton = Instance.new("TextButton", frame)
+toggleButton.Size = UDim2.new(0.8, 0, 0, 30)
+toggleButton.Position = UDim2.new(0.1, 0, 0, 35)
+toggleButton.Text = "Auto Parry: ON"
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+toggleButton.TextColor3 = Color3.new(1,1,1)
+toggleButton.Font = Enum.Font.SourceSans
+toggleButton.TextSize = 16
+
+local hitboxButton = Instance.new("TextButton", frame)
+hitboxButton.Size = UDim2.new(0.8, 0, 0, 30)
+hitboxButton.Position = UDim2.new(0.1, 0, 0, 75)
+hitboxButton.Text = "Hitbox: ON"
+hitboxButton.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
+hitboxButton.TextColor3 = Color3.new(1,1,1)
+hitboxButton.Font = Enum.Font.SourceSans
+hitboxButton.TextSize = 16
+
+local minimizeButton = Instance.new("TextButton", frame)
+minimizeButton.Size = UDim2.new(0, 20, 0, 20)
+minimizeButton.Position = UDim2.new(1, -25, 0, 3)
+minimizeButton.Text = "-"
+minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+minimizeButton.TextColor3 = Color3.new(1,1,1)
+minimizeButton.Font = Enum.Font.SourceSansBold
+minimizeButton.TextSize = 16
+
+-- Crear/actualizar hitbox falsa
+local function updateHitbox()
+	if fakeHitbox then
+		fakeHitbox:Destroy()
+		fakeHitbox = nil
+	end
+
+	if not hitboxEnabled then return end
+
+	Character = LocalPlayer.Character
+	if Character and Character:FindFirstChild("HumanoidRootPart") then
+		local root = Character.HumanoidRootPart
+		fakeHitbox = Instance.new("Part")
+		fakeHitbox.Name = "NehemiasHitbox"
+		fakeHitbox.Size = Vector3.new(20, 20, 20) -- MÁS GRANDE
+		fakeHitbox.Transparency = 0.5
+		fakeHitbox.CanCollide = false
+		fakeHitbox.Anchored = false
+		fakeHitbox.Color = Color3.fromRGB(255, 0, 0)
+		fakeHitbox.Material = Enum.Material.Neon
+		fakeHitbox.Parent = root
+
+		local weld = Instance.new("WeldConstraint", fakeHitbox)
+		weld.Part0 = root
+		weld.Part1 = fakeHitbox
+	end
+end
+
+-- Hitbox de la bola
+local function expandBallHitbox()
+	if not hitboxEnabled then return end
+	for _, obj in pairs(workspace:GetChildren()) do
+		if obj:IsA("BasePart") and obj.Name:lower():find("ball") then
+			obj.Size = Vector3.new(20, 20, 20)
+			obj.Transparency = 0.3
+			obj.Material = Enum.Material.ForceField
+			obj.Color = Color3.fromRGB(0, 170, 255)
+		end
+	end
+end
+
+-- Buscar la bola
+local function getBall()
+	for _, obj in pairs(workspace:GetChildren()) do
+		if obj:IsA("BasePart") and obj.Name:lower():find("ball") then
+			return obj
+		end
+	end
+end
+
+-- Auto Parry funcional
+local function startAutoParry()
+	if connection then connection:Disconnect() end
+	connection = RunService.RenderStepped:Connect(function()
+		if not autoParryEnabled then return end
+		local ball = getBall()
+		if ball and Character and Character:FindFirstChild("HumanoidRootPart") then
+			local dist = (ball.Position - Character.HumanoidRootPart.Position).Magnitude
+			if dist < 15 then
+				local args = {
+					[1] = "Parry",
+					[2] = true
+				}
+				ReplicatedStorage:WaitForChild("RemoteEvent"):FireServer(unpack(args))
+			end
+		end
+		expandBallHitbox()
+	end)
+end
+
+-- Botones
+toggleButton.MouseButton1Click:Connect(function()
+	autoParryEnabled = not autoParryEnabled
+	toggleButton.Text = "Auto Parry: " .. (autoParryEnabled and "ON" or "OFF")
+	toggleButton.BackgroundColor3 = autoParryEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
+end)
+
+hitboxButton.MouseButton1Click:Connect(function()
+	hitboxEnabled = not hitboxEnabled
+	hitboxButton.Text = "Hitbox: " .. (hitboxEnabled and "ON" or "OFF")
+	hitboxButton.BackgroundColor3 = hitboxEnabled and Color3.fromRGB(0, 100, 200) or Color3.fromRGB(100, 0, 0)
+	updateHitbox()
+end)
+
+-- Minimizar
+local minimized = false
+minimizeButton.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	for _, child in pairs(frame:GetChildren()) do
+		if child ~= title and child ~= minimizeButton then
+			child.Visible = not minimized
+		end
+	end
+	frame.Size = minimized and UDim2.new(0, 220, 0, 25) or UDim2.new(0, 220, 0, 160)
+	minimizeButton.Text = minimized and "+" or "-"
+end)
+
+-- Detectar respawn del jugador
+LocalPlayer.CharacterAdded:Connect(function(char)
+	Character = char
+	wait(1)
+	updateHitbox()
+end)
+
+-- Ejecutar
+updateHitbox()
+startAutoParry()
