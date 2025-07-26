@@ -1,77 +1,55 @@
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
-
-repeat wait() until LocalPlayer.Character and LocalPlayer:FindFirstChild("PlayerGui")
+local RunService = game:GetService("RunService")
 
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Crear ScreenGui
+-- Crear GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "NehemiasMM2"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- Frame principal
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 280, 0, 220)
-frame.Position = UDim2.new(0.05, 0, 0.2, 0)
-frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
-frame.BorderSizePixel = 0
+frame.Size = UDim2.new(0, 280, 0, 180)
+frame.Position = UDim2.new(0.05, 0, 0.3, 0)
+frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 frame.Active = true
 frame.Draggable = true
 frame.Parent = screenGui
 
--- Título
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 35)
-title.Position = UDim2.new(0, 0, 0, 0)
+title.Size = UDim2.new(1, 0, 0, 40)
 title.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Font = Enum.Font.Freedoka
-title.TextSize = 22
+title.TextSize = 24
 title.Text = "Nehemías"
 title.Parent = frame
 
--- Función para crear botones fácil
-local function createButton(text, y)
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0.9, 0, 0, 40)
-	btn.Position = UDim2.new(0.05, 0, 0, y)
-	btn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-	btn.TextColor3 = Color3.new(1,1,1)
-	btn.Font = Enum.Font.Freedoka
-	btn.TextSize = 18
-	btn.Text = text
-	btn.Parent = frame
-	return btn
+local function createButton(text, posY)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.9, 0, 0, 40)
+    btn.Position = UDim2.new(0.05, 0, 0, posY)
+    btn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.Freedoka
+    btn.TextSize = 18
+    btn.Text = text
+    btn.Parent = frame
+    return btn
 end
 
-local espBtn = createButton("ESP: OFF", 45)
-local timeBtn = createButton("Tiempo de ronda: OFF", 95)
-local autoBtn = createButton("Auto Disparo: OFF", 145)
+local espBtn = createButton("ESP: OFF", 50)
+local autoBtn = createButton("Auto Disparo: OFF", 100)
 
--- Label de tiempo arriba pantalla
-local timeLabel = Instance.new("TextLabel")
-timeLabel.Size = UDim2.new(0, 180, 0, 50)
-timeLabel.Position = UDim2.new(0.5, -90, 0.05, 0)
-timeLabel.BackgroundTransparency = 1
-timeLabel.Font = Enum.Font.Freedoka
-timeLabel.TextSize = 32
-timeLabel.TextColor3 = Color3.new(1,1,1)
-timeLabel.TextStrokeColor3 = Color3.new(0,0,0)
-timeLabel.TextStrokeTransparency = 0
-timeLabel.Visible = false
-timeLabel.Parent = screenGui
-
--- Botón flotante disparar
 local shootBtn = Instance.new("TextButton")
 shootBtn.Size = UDim2.new(0, 120, 0, 45)
 shootBtn.Position = UDim2.new(0.5, -60, 0.7, 0)
 shootBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
-shootBtn.TextColor3 = Color3.new(1,1,1)
+shootBtn.TextColor3 = Color3.new(1, 1, 1)
 shootBtn.Font = Enum.Font.Freedoka
 shootBtn.TextSize = 20
 shootBtn.Text = "Disparar"
@@ -80,172 +58,117 @@ shootBtn.Active = true
 shootBtn.Draggable = true
 shootBtn.Parent = screenGui
 
--- Variables de estado
-local espOn, timeOn, autoOn = false, false, false
+local espOn = false
+local autoOn = false
 local espTrack = {}
-local roundStart = 0
-local roundDuration = 150
-local inRound = false
-
--- Funciones básicas (getRoles, roleColor, clearESP, updateESP)
 
 local function getRoles()
-	local murderer, sheriff = nil, nil
-	for _,plr in pairs(Players:GetPlayers()) do
-		local bp = plr:FindFirstChildOfClass("Backpack")
-		if bp then
-			if bp:FindFirstChild("Knife") then murderer = plr end
-			if bp:FindFirstChild("Gun") then sheriff = plr end
-		end
-		if plr.Character then
-			if plr.Character:FindFirstChild("Knife") then murderer = plr end
-			if plr.Character:FindFirstChild("Gun") then sheriff = plr end
-		end
-	end
-	return murderer, sheriff
+    local murderer, sheriff = nil, nil
+    for _, plr in pairs(Players:GetPlayers()) do
+        local bp = plr:FindFirstChildOfClass("Backpack")
+        if bp then
+            if bp:FindFirstChild("Knife") then murderer = plr end
+            if bp:FindFirstChild("Gun") then sheriff = plr end
+        end
+        if plr.Character then
+            if plr.Character:FindFirstChild("Knife") then murderer = plr end
+            if plr.Character:FindFirstChild("Gun") then sheriff = plr end
+        end
+    end
+    return murderer, sheriff
 end
 
 local function roleColor(plr)
-	if not inRound then return Color3.fromRGB(0,255,0) end
-	local m, s = getRoles()
-	if plr == m then return Color3.fromRGB(255,0,0) end
-	if plr == s then return Color3.fromRGB(0,0,255) end
-	return Color3.fromRGB(0,255,0)
+    local m, s = getRoles()
+    if plr == m then return Color3.fromRGB(255, 0, 0) end
+    if plr == s then return Color3.fromRGB(0, 0, 255) end
+    return Color3.fromRGB(0, 255, 0)
 end
 
 local function clearESP()
-	for _,obj in pairs(espTrack) do
-		if obj and obj.Parent then
-			obj:Destroy()
-		end
-	end
-	table.clear(espTrack)
+    for _, obj in pairs(espTrack) do
+        if obj and obj.Parent then
+            obj:Destroy()
+        end
+    end
+    table.clear(espTrack)
 end
 
 local function updateESP()
-	clearESP()
-	for _,plr in pairs(Players:GetPlayers()) do
-		if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character:FindFirstChild("Head") then
-			local clr = roleColor(plr)
-			local bi = Instance.new("BillboardGui")
-			bi.Size = UDim2.new(0,100,0,40)
-			bi.Adornee = plr.Character.Head
-			bi.AlwaysOnTop = true
-			bi.Parent = plr.Character
+    clearESP()
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character:FindFirstChild("Head") then
+            local clr = roleColor(plr)
+            local bi = Instance.new("BillboardGui")
+            bi.Size = UDim2.new(0, 100, 0, 40)
+            bi.Adornee = plr.Character.Head
+            bi.AlwaysOnTop = true
+            bi.Parent = plr.Character
 
-			local lbl = Instance.new("TextLabel")
-			lbl.Size = UDim2.new(1,0,1,0)
-			lbl.BackgroundTransparency = 1
-			lbl.Text = plr.Name
-			lbl.TextColor3 = clr
-			lbl.Font = Enum.Font.Freedoka
-			lbl.TextScaled = true
-			lbl.Parent = bi
+            local lbl = Instance.new("TextLabel")
+            lbl.Size = UDim2.new(1, 0, 1, 0)
+            lbl.BackgroundTransparency = 1
+            lbl.Text = plr.Name
+            lbl.TextColor3 = clr
+            lbl.Font = Enum.Font.Freedoka
+            lbl.TextScaled = true
+            lbl.Parent = bi
 
-			table.insert(espTrack, bi)
+            table.insert(espTrack, bi)
 
-			for _,part in pairs(plr.Character:GetChildren()) do
-				if part:IsA("BasePart") then
-					local box = Instance.new("BoxHandleAdornment")
-					box.Adornee = part
-					box.AlwaysOnTop = true
-					box.ZIndex = 5
-					box.Size = part.Size + Vector3.new(0.05,0.05,0.05)
-					box.Transparency = 0.5
-					box.Color3 = clr
-					box.Parent = part
-					table.insert(espTrack, box)
-				end
-			end
-		end
-	end
+            for _, part in pairs(plr.Character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    local box = Instance.new("BoxHandleAdornment")
+                    box.Adornee = part
+                    box.AlwaysOnTop = true
+                    box.ZIndex = 5
+                    box.Size = part.Size + Vector3.new(0.05, 0.05, 0.05)
+                    box.Transparency = 0.5
+                    box.Color3 = clr
+                    box.Parent = part
+                    table.insert(espTrack, box)
+                end
+            end
+        end
+    end
 end
 
--- Actualizar tiempo ronda en RenderStepped
-RunService.RenderStepped:Connect(function()
-	if inRound and timeOn then
-		local now = os.time()
-		local elapsed = now - roundStart
-		local remaining = math.max(0, roundDuration - elapsed)
-		local m = math.floor(remaining / 60)
-		local s = remaining % 60
-		timeLabel.Text = string.format("%d:%02d", m, s)
-		timeLabel.Visible = remaining > 0
-	else
-		timeLabel.Visible = false
-	end
-end)
-
--- Detectar inicio y fin de ronda (Map aparece y desaparece)
-workspace.ChildAdded:Connect(function(c)
-	if c.Name == "Map" then
-		wait(1)
-		roundStart = os.time()
-		inRound = true
-		if timeOn then timeLabel.Visible = true end
-		if espOn then updateESP() end
-	end
-end)
-
-workspace.ChildRemoved:Connect(function(c)
-	if c.Name == "Map" then
-		inRound = false
-		timeLabel.Visible = false
-		clearESP()
-	end
-end)
-
--- Actualizar ESP al entrar/salir jugadores
-Players.PlayerAdded:Connect(function()
-	if espOn and inRound then updateESP() end
-end)
-
-Players.PlayerRemoving:Connect(function()
-	if espOn and inRound then updateESP() end
-end)
-
--- Botones
-
 espBtn.MouseButton1Click:Connect(function()
-	espOn = not espOn
-	espBtn.Text = "ESP: " .. (espOn and "ON" or "OFF")
-	espBtn.BackgroundColor3 = espOn and Color3.fromRGB(0,170,0) or Color3.fromRGB(100,100,100)
-	if espOn and inRound then updateESP() else clearESP() end
-end)
-
-timeBtn.MouseButton1Click:Connect(function()
-	timeOn = not timeOn
-	timeBtn.Text = "Tiempo de ronda: " .. (timeOn and "ON" or "OFF")
-	timeBtn.BackgroundColor3 = timeOn and Color3.fromRGB(0,170,0) or Color3.fromRGB(100,100,100)
-	timeLabel.Visible = timeOn and inRound
+    espOn = not espOn
+    espBtn.Text = "ESP: " .. (espOn and "ON" or "OFF")
+    espBtn.BackgroundColor3 = espOn and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(100, 100, 100)
+    if espOn then
+        updateESP()
+    else
+        clearESP()
+    end
 end)
 
 autoBtn.MouseButton1Click:Connect(function()
-	autoOn = not autoOn
-	autoBtn.Text = "Auto Disparo: " .. (autoOn and "ON" or "OFF")
-	autoBtn.BackgroundColor3 = autoOn and Color3.fromRGB(0,170,0) or Color3.fromRGB(100,100,100)
-	shootBtn.Visible = autoOn
+    autoOn = not autoOn
+    autoBtn.Text = "Auto Disparo: " .. (autoOn and "ON" or "OFF")
+    autoBtn.BackgroundColor3 = autoOn and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(100, 100, 100)
+    shootBtn.Visible = autoOn
 end)
 
--- Funcionalidad botón disparar
 shootBtn.MouseButton1Click:Connect(function()
-	local murderer, sheriff = getRoles()
-	if not murderer or not sheriff then
-		StarterGui:SetCore("SendNotification", {Title="Nehemías"; Text="No se detectó murderer o sheriff"; Duration=2})
-		return
-	end
-	if LocalPlayer ~= sheriff then
-		StarterGui:SetCore("SendNotification", {Title="Nehemías"; Text="Solo el sheriff puede disparar"; Duration=2})
-		return
-	end
-	local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")
-	if not tool then
-		StarterGui:SetCore("SendNotification", {Title="Nehemías"; Text="Necesitás el arma"; Duration=2})
-		return
-	end
-	tool:Activate()
-	local ev = ReplicatedStorage:FindFirstChild("ShootEvent")
-	if ev and murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart") then
-		ev:FireServer(murderer.Character.HumanoidRootPart.Position)
-	end
+    local murderer, sheriff = getRoles()
+    if not murderer or not sheriff then
+        StarterGui:SetCore("SendNotification", {Title="Nehemías"; Text="No se detectó murderer o sheriff"; Duration=2})
+        return
+    end
+    if LocalPlayer ~= sheriff then
+        StarterGui:SetCore("SendNotification", {Title="Nehemías"; Text="Solo el sheriff puede disparar"; Duration=2})
+        return
+    end
+    local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")
+    if not tool then
+        StarterGui:SetCore("SendNotification", {Title="Nehemías"; Text="Necesitás el arma"; Duration=2})
+        return
+    end
+    tool:Activate()
+    local ev = ReplicatedStorage:FindFirstChild("ShootEvent")
+    if ev and murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart") then
+        ev:FireServer(murderer.Character.HumanoidRootPart.Position)
+    end
 end)
