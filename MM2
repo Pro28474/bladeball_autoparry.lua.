@@ -67,15 +67,14 @@ shootButton.Draggable = true
 local espEnabled = false
 local autoShootEnabled = false
 local espObjects = {}
+local inRound = false
 
 -- Detectar rol basándonos en roles oficiales
 local function getRole(plr)
-	-- Usamos tags creados por el juego para roles (roblox Murder Mystery 2 usa valores)
 	local roleValue = plr:FindFirstChild("Role") or plr:FindFirstChild("RoleValue") or plr:FindFirstChild("CurrentRole")
 	if roleValue and roleValue:IsA("StringValue") then
 		return roleValue.Value
 	end
-	-- Fallback: buscar armas en Backpack o Character
 	local backpack = plr:FindFirstChildOfClass("Backpack")
 	if backpack then
 		if backpack:FindFirstChild("Gun") then return "Sheriff" end
@@ -88,20 +87,23 @@ local function getRole(plr)
 	return "Innocent"
 end
 
--- Colores según rol
-local function getColor(role)
-	if role == "Murderer" then return Color3.fromRGB(255, 0, 0) end
-	if role == "Sheriff" then return Color3.fromRGB(0, 0, 255) end
-	return Color3.fromRGB(0, 255, 0)
+-- Colores según rol y estado de ronda
+local function getColor(plrRole)
+	if inRound then
+		if plrRole == "Murderer" then return Color3.fromRGB(255, 0, 0) end
+		if plrRole == "Sheriff" then return Color3.fromRGB(0, 0, 255) end
+		return Color3.fromRGB(0, 255, 0)
+	else
+		-- En lobby o ronda terminada todos verdes
+		return Color3.fromRGB(0, 255, 0)
+	end
 end
 
--- Limpiar ESP
 local function clearESP()
 	for _, obj in pairs(espObjects) do obj:Destroy() end
 	table.clear(espObjects)
 end
 
--- Crear ESP en jugador
 local function createESP(plr)
 	if plr == LocalPlayer then return end
 	if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then return end
@@ -137,7 +139,6 @@ local function createESP(plr)
 	end
 end
 
--- Actualizar ESP para todos
 local function updateESP()
 	clearESP()
 	for _, plr in pairs(Players:GetPlayers()) do
@@ -145,49 +146,46 @@ local function updateESP()
 	end
 end
 
--- Detectar si estamos en mapa o lobby
 local function isInGameMap()
-	-- En Murder Mystery 2 el workspace tiene un Folder "Map" solo cuando la ronda está activa
 	return workspace:FindFirstChild("Map") ~= nil
 end
 
--- Evento para actualizar ESP cuando cambia el estado de ronda
-local function onRoundChanged()
+local function onRoundChanged(inGame)
+	inRound = inGame
 	if espEnabled then
-		if isInGameMap() then
-			updateESP()
-		else
-			clearESP()
-		end
+		updateESP()
 	end
 end
 
--- Actualizar ESP al entrar o salir del mapa, y cuando cambia un jugador
+-- Detectar cambios de ronda (mapa)
 workspace.ChildAdded:Connect(function(child)
 	if child.Name == "Map" then
-		wait(1) -- Esperar que cargue todo
-		onRoundChanged()
+		wait(1)
+		onRoundChanged(true)
 	end
 end)
 
 workspace.ChildRemoved:Connect(function(child)
 	if child.Name == "Map" then
 		wait(0.5)
-		onRoundChanged()
+		onRoundChanged(false)
 	end
 end)
 
+-- Actualizar ESP cuando un jugador entra o su personaje aparece
 Players.PlayerAdded:Connect(function(plr)
 	plr.CharacterAdded:Connect(function()
 		wait(1)
-		if espEnabled and isInGameMap() then
-			createESP(plr)
+		if espEnabled then
+			updateESP()
 		end
 	end)
 end)
 
-Players.PlayerRemoving:Connect(function(plr)
-	onRoundChanged()
+Players.PlayerRemoving:Connect(function()
+	if espEnabled then
+		updateESP()
+	end
 end)
 
 -- Toggle ESP
@@ -196,7 +194,7 @@ espToggle.MouseButton1Click:Connect(function()
 	espToggle.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
 	espToggle.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(100, 100, 100)
 	if espEnabled then
-		onRoundChanged()
+		onRoundChanged(isInGameMap())
 	else
 		clearESP()
 	end
@@ -209,8 +207,8 @@ local function shootAtMurderer()
 	local tool = char:FindFirstChild("Gun")
 	if not tool then
 		StarterGui:SetCore("SendNotification", {
-			Title = "Nehemías";
-			Text = "⚠️ Necesitas el arma";
+			Title = "Auto Disparo";
+			Text = "⚠️ Necesitas el arma ⚠️";
 			Duration = 2;
 		})
 		return
@@ -218,7 +216,6 @@ local function shootAtMurderer()
 
 	for _, plr in pairs(Players:GetPlayers()) do
 		if plr ~= LocalPlayer and getRole(plr) == "Murderer" and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-			-- Disparo al murderer (aquí asumimos que hay un evento para disparar)
 			local shootEvent = ReplicatedStorage:FindFirstChild("ShootEvent")
 			if shootEvent then
 				local args = {
