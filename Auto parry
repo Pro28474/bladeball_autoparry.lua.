@@ -1,0 +1,125 @@
+-- Auto Parry + Hitbox extendido + GUI por ChatGPT para Nehemías
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+
+local autoParryEnabled = true
+local connection
+
+-- Crear GUI
+local screenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+screenGui.Name = "NehemiasAutoParryGUI"
+
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 200, 0, 100)
+frame.Position = UDim2.new(0.5, -100, 0.3, 0)
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 25)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.Text = "Nehemías"
+title.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 18
+
+local toggleButton = Instance.new("TextButton", frame)
+toggleButton.Size = UDim2.new(0.8, 0, 0, 30)
+toggleButton.Position = UDim2.new(0.1, 0, 0, 35)
+toggleButton.Text = "Auto Parry: ON"
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+toggleButton.TextColor3 = Color3.new(1,1,1)
+toggleButton.Font = Enum.Font.SourceSans
+toggleButton.TextSize = 16
+
+local minimizeButton = Instance.new("TextButton", frame)
+minimizeButton.Size = UDim2.new(0, 20, 0, 20)
+minimizeButton.Position = UDim2.new(1, -25, 0, 3)
+minimizeButton.Text = "-"
+minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+minimizeButton.TextColor3 = Color3.new(1,1,1)
+minimizeButton.Font = Enum.Font.SourceSansBold
+minimizeButton.TextSize = 16
+
+-- Aumentar hitbox de jugador
+local function expandHitbox()
+	local root = Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		root.Size = Vector3.new(10, 10, 10)
+		root.Transparency = 0.5
+		root.Material = Enum.Material.Neon
+		root.Color = Color3.fromRGB(255, 0, 0)
+		root.CanCollide = false
+	end
+end
+
+-- Aumentar hitbox de la bola
+local function expandBallHitbox()
+	for _, obj in pairs(workspace:GetChildren()) do
+		if obj:IsA("BasePart") and obj.Name:lower():find("ball") then
+			obj.Size = Vector3.new(10, 10, 10)
+			obj.Transparency = 0.3
+			obj.Material = Enum.Material.ForceField
+			obj.Color = Color3.fromRGB(0, 170, 255)
+		end
+	end
+end
+
+-- Buscar bola
+local function getBall()
+	for _, obj in pairs(workspace:GetChildren()) do
+		if obj:IsA("BasePart") and obj.Name:lower():find("ball") then
+			return obj
+		end
+	end
+end
+
+-- Auto parry
+local function startAutoParry()
+	connection = RunService.RenderStepped:Connect(function()
+		if not autoParryEnabled then return end
+		local ball = getBall()
+		if ball and Character and Character:FindFirstChild("HumanoidRootPart") then
+			local dist = (ball.Position - Character.HumanoidRootPart.Position).Magnitude
+			if dist < 15 then
+				local args = {
+					[1] = "Parry",
+					[2] = true
+				}
+				ReplicatedStorage:WaitForChild("RemoteEvent"):FireServer(unpack(args))
+			end
+		end
+		expandBallHitbox()
+	end)
+end
+
+-- Botón toggle
+toggleButton.MouseButton1Click:Connect(function()
+	autoParryEnabled = not autoParryEnabled
+	toggleButton.Text = "Auto Parry: " .. (autoParryEnabled and "ON" or "OFF")
+	toggleButton.BackgroundColor3 = autoParryEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
+end)
+
+-- Minimizar
+local minimized = false
+minimizeButton.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	for _, child in pairs(frame:GetChildren()) do
+		if child ~= title and child ~= minimizeButton then
+			child.Visible = not minimized
+		end
+	end
+	frame.Size = minimized and UDim2.new(0, 200, 0, 25) or UDim2.new(0, 200, 0, 100)
+	minimizeButton.Text = minimized and "+" or "-"
+end)
+
+-- Ejecutar
+expandHitbox()
+startAutoParry()
