@@ -1,0 +1,189 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+
+-- GUI
+local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+gui.Name = "NehemiasGUI"
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 230, 0, 120)
+frame.Position = UDim2.new(0.05, 0, 0.2, 0)
+frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 25)
+title.Text = "Nehemías"
+title.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 20
+
+local espToggle = Instance.new("TextButton", frame)
+espToggle.Size = UDim2.new(0.9, 0, 0, 30)
+espToggle.Position = UDim2.new(0.05, 0, 0, 35)
+espToggle.Text = "ESP: OFF"
+espToggle.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+espToggle.TextColor3 = Color3.new(1,1,1)
+espToggle.Font = Enum.Font.SourceSans
+espToggle.TextSize = 16
+
+local autoShootToggle = Instance.new("TextButton", frame)
+autoShootToggle.Size = UDim2.new(0.9, 0, 0, 30)
+autoShootToggle.Position = UDim2.new(0.05, 0, 0, 70)
+autoShootToggle.Text = "Auto Disparo: OFF"
+autoShootToggle.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+autoShootToggle.TextColor3 = Color3.new(1,1,1)
+autoShootToggle.Font = Enum.Font.SourceSans
+autoShootToggle.TextSize = 16
+
+local minimize = Instance.new("TextButton", frame)
+minimize.Size = UDim2.new(0, 20, 0, 20)
+minimize.Position = UDim2.new(1, -25, 0, 2)
+minimize.Text = "-"
+minimize.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+minimize.TextColor3 = Color3.new(1,1,1)
+
+-- Botón de disparar flotante
+local shootButton = Instance.new("TextButton", gui)
+shootButton.Size = UDim2.new(0, 100, 0, 40)
+shootButton.Position = UDim2.new(0.5, -50, 0.7, 0)
+shootButton.Text = "🔫 Disparar"
+shootButton.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+shootButton.TextColor3 = Color3.new(1,1,1)
+shootButton.Font = Enum.Font.SourceSansBold
+shootButton.TextSize = 18
+shootButton.Visible = false
+shootButton.Active = true
+shootButton.Draggable = true
+
+-- Variables
+local espEnabled = false
+local autoShootEnabled = false
+local espObjects = {}
+
+-- Función para detectar rol
+local function getRole(plr)
+	local backpack = plr:FindFirstChildOfClass("Backpack")
+	if backpack then
+		if backpack:FindFirstChild("Gun") then return "Sheriff" end
+		if backpack:FindFirstChild("Knife") then return "Murderer" end
+	end
+	if plr.Character then
+		if plr.Character:FindFirstChild("Gun") then return "Sheriff" end
+		if plr.Character:FindFirstChild("Knife") then return "Murderer" end
+	end
+	return "Innocent"
+end
+
+-- Colores según rol
+local function getColor(role)
+	if role == "Murderer" then return Color3.fromRGB(255, 0, 0) end
+	if role == "Sheriff" then return Color3.fromRGB(0, 0, 255) end
+	return Color3.fromRGB(0, 255, 0)
+end
+
+-- Activar ESP
+local function updateESP()
+	for _, obj in pairs(espObjects) do obj:Destroy() end
+	table.clear(espObjects)
+
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+			local billboard = Instance.new("BillboardGui", plr.Character)
+			billboard.Size = UDim2.new(0, 100, 0, 40)
+			billboard.Adornee = plr.Character:FindFirstChild("Head")
+			billboard.AlwaysOnTop = true
+
+			local name = Instance.new("TextLabel", billboard)
+			name.Size = UDim2.new(1, 0, 1, 0)
+			name.BackgroundTransparency = 1
+			name.Text = plr.Name
+			name.TextColor3 = getColor(getRole(plr))
+			name.Font = Enum.Font.SourceSansBold
+			name.TextScaled = true
+
+			for _, part in pairs(plr.Character:GetChildren()) do
+				if part:IsA("BasePart") then
+					local highlight = Instance.new("BoxHandleAdornment", part)
+					highlight.Adornee = part
+					highlight.AlwaysOnTop = true
+					highlight.ZIndex = 10
+					highlight.Size = part.Size + Vector3.new(0.05, 0.05, 0.05)
+					highlight.Transparency = 0.5
+					highlight.Color3 = getColor(getRole(plr))
+					highlight.Name = "ESPPart"
+					table.insert(espObjects, highlight)
+				end
+			end
+
+			table.insert(espObjects, billboard)
+		end
+	end
+end
+
+-- Toggle ESP
+espToggle.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	espToggle.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
+	espToggle.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(100, 100, 100)
+
+	if espEnabled then
+		updateESP()
+	else
+		for _, obj in pairs(espObjects) do obj:Destroy() end
+		table.clear(espObjects)
+	end
+end)
+
+-- Disparo al murder
+shootButton.MouseButton1Click:Connect(function()
+	local char = LocalPlayer.Character
+	if not char then return end
+
+	local tool = char:FindFirstChild("Gun")
+	if not tool then
+		StarterGui:SetCore("SendNotification", {
+			Title = "Nehemías";
+			Text = "⚠️ Necesitas el arma";
+			Duration = 2;
+		})
+		return
+	end
+
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer and getRole(plr) == "Murderer" and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+			local args = {
+				[1] = plr.Character.HumanoidRootPart.Position
+			}
+			tool:Activate()
+			ReplicatedStorage:WaitForChild("ShootEvent"):FireServer(unpack(args))
+		end
+	end
+end)
+
+-- Toggle Auto Disparo
+autoShootToggle.MouseButton1Click:Connect(function()
+	autoShootEnabled = not autoShootEnabled
+	autoShootToggle.Text = "Auto Disparo: " .. (autoShootEnabled and "ON" or "OFF")
+	autoShootToggle.BackgroundColor3 = autoShootEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(100, 100, 100)
+	shootButton.Visible = autoShootEnabled
+end)
+
+-- Minimizar GUI
+local minimized = false
+minimize.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	for _, child in pairs(frame:GetChildren()) do
+		if child ~= title and child ~= minimize then
+			child.Visible = not minimized
+		end
+	end
+	frame.Size = minimized and UDim2.new(0, 230, 0, 25) or UDim2.new(0, 230, 0, 120)
+	minimize.Text = minimized and "+" or "-"
+end)
