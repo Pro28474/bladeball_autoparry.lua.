@@ -57,7 +57,7 @@ autoBtn.TextColor3 = Color3.new(1,1,1)
 
 local minimize = Instance.new("TextButton", frame)
 minimize.Size = UDim2.new(0,20,0,20)
-minimize.Position = UDim2.new(1,-25,0,2)
+minimize.Position = UDim2.new(1,-25,0,5)
 minimize.Text = "-"
 minimize.Font = Enum.Font.Freedoka
 minimize.TextSize = 18
@@ -93,9 +93,10 @@ shootBtn.Draggable = true
 local espOn, timeOn, autoOn = false, false, false
 local espTrack = {}
 local roundStart = 0
+local roundDuration = 150 -- ajustar si cambia el tiempo real de ronda
 local inRound = false
 
--- Obtener roles con detección de armas
+-- Obtener roles
 local function getRoles()
 	local murderer, sheriff = nil, nil
 	for _,plr in pairs(Players:GetPlayers()) do
@@ -121,25 +122,44 @@ local function roleColor(plr)
 	return Color3.fromRGB(0,255,0)
 end
 
+-- Limpiar ESP
+local function clearESP()
+	for _,obj in pairs(espTrack) do
+		if obj and obj.Parent then
+			obj:Destroy()
+		end
+	end
+	table.clear(espTrack)
+end
+
 -- ESP: resaltar cuerpo + nombre
 local function updateESP()
-	for _,obj in pairs(espTrack) do obj:Destroy() end
-	table.clear(espTrack)
+	clearESP()
 	for _,plr in pairs(Players:GetPlayers()) do
 		if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
 			local clr = roleColor(plr)
-			local bi = Instance.new("BillboardGui", plr.Character); bi.Size = UDim2.new(0,100,0,40)
-			bi.Adornee = plr.Character:FindFirstChild("Head"); bi.AlwaysOnTop = true
-			local lbl = Instance.new("TextLabel", bi); lbl.Size = UDim2.new(1,1)
-			lbl.BackgroundTransparency = 1; lbl.Text = plr.Name
-			lbl.TextColor3 = clr; lbl.Font = Enum.Font.Freedoka; lbl.TextScaled = true
+			local bi = Instance.new("BillboardGui", plr.Character)
+			bi.Size = UDim2.new(0,100,0,40)
+			bi.Adornee = plr.Character:FindFirstChild("Head")
+			bi.AlwaysOnTop = true
+			local lbl = Instance.new("TextLabel", bi)
+			lbl.Size = UDim2.new(1,1)
+			lbl.BackgroundTransparency = 1
+			lbl.Text = plr.Name
+			lbl.TextColor3 = clr
+			lbl.Font = Enum.Font.Freedoka
+			lbl.TextScaled = true
 			table.insert(espTrack, bi)
+
 			for _,part in pairs(plr.Character:GetChildren()) do
 				if part:IsA("BasePart") then
 					local box = Instance.new("BoxHandleAdornment", part)
-					box.Adornee = part; box.AlwaysOnTop = true; box.ZIndex = 5
+					box.Adornee = part
+					box.AlwaysOnTop = true
+					box.ZIndex = 5
 					box.Size = part.Size + Vector3.new(0.05,0.05,0.05)
-					box.Transparency = 0.5; box.Color3 = clr
+					box.Transparency = 0.5
+					box.Color3 = clr
 					table.insert(espTrack, box)
 				end
 			end
@@ -148,14 +168,19 @@ local function updateESP()
 end
 
 -- Control de tiempo de ronda
-RunService.RenderStepped:Connect(function(dt)
+RunService.RenderStepped:Connect(function()
 	if inRound and timeOn then
-		local elapsed = os.time() - roundStart
-		local total = 150 -- asumiendo ronda dura 150 seg aprox
-		local remaining = math.max(0, total - elapsed)
+		local now = os.time()
+		local elapsed = now - roundStart
+		local remaining = math.max(0, roundDuration - elapsed)
 		local m = math.floor(remaining / 60)
 		local s = remaining % 60
 		timeLabel.Text = string.format("%d:%02d", m, s)
+		if remaining <= 0 then
+			timeLabel.Visible = false
+		else
+			timeLabel.Visible = true
+		end
 	end
 end)
 
@@ -166,13 +191,23 @@ workspace.ChildAdded:Connect(function(c)
 		roundStart = os.time()
 		inRound = true
 		if timeOn then timeLabel.Visible = true end
+		if espOn then updateESP() end
 	end
 end)
 workspace.ChildRemoved:Connect(function(c)
 	if c.Name == "Map" then
 		inRound = false
 		timeLabel.Visible = false
+		clearESP()
 	end
+end)
+
+-- Actualizar ESP al cambiar jugadores o roles
+Players.PlayerAdded:Connect(function()
+	if espOn and inRound then updateESP() end
+end)
+Players.PlayerRemoving:Connect(function()
+	if espOn and inRound then updateESP() end
 end)
 
 -- Toggle ESP
@@ -180,16 +215,19 @@ espBtn.MouseButton1Click:Connect(function()
 	espOn = not espOn
 	espBtn.Text = "ESP: " .. (espOn and "ON" or "OFF")
 	espBtn.BackgroundColor3 = espOn and Color3.fromRGB(0,170,0) or Color3.fromRGB(100,100,100)
-	if espOn then updateESP() else for _,o in pairs(espTrack) do o:Destroy() end
-	end
+	if espOn and inRound then updateESP() else clearESP() end
 end)
 
--- Toggle Tiempo
+-- Toggle Tiempo de ronda
 timeBtn.MouseButton1Click:Connect(function()
 	timeOn = not timeOn
 	timeBtn.Text = "Tiempo de ronda: " .. (timeOn and "ON" or "OFF")
 	timeBtn.BackgroundColor3 = timeOn and Color3.fromRGB(0,170,0) or Color3.fromRGB(100,100,100)
-	if timeOn and inRound then timeLabel.Visible = true end
+	if timeOn and inRound then
+		timeLabel.Visible = true
+	else
+		timeLabel.Visible = false
+	end
 end)
 
 -- Toggle Auto Disparo
@@ -202,23 +240,45 @@ end)
 
 -- Función disparar directo al Murderer
 shootBtn.MouseButton1Click:Connect(function()
-	local m = getRoles()
+	local murderer, sheriff = getRoles()
+	if not murderer or not sheriff then
+		StarterGui:SetCore("SendNotification", {Title="Nehemías"; Text="No se detectó murderer o sheriff"; Duration=2})
+		return
+	end
+	if LocalPlayer ~= sheriff then
+		StarterGui:SetCore("SendNotification", {Title="Nehemías"; Text="Solo el sheriff puede disparar"; Duration=2})
+		return
+	end
 	local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")
-	if tool and m then
-		tool:Activate()
-		local ev = ReplicatedStorage:FindFirstChild("ShootEvent")
-		if ev and m.Character and m.Character:FindFirstChild("HumanoidRootPart") then
-			ev:FireServer(m.Character.HumanoidRootPart.Position)
-		end
-	else
-		StarterGui:SetCore("SendNotification", {Title="Nehemías";Text="Necesitás el arma";Duration=2})
+	if not tool then
+		StarterGui:SetCore("SendNotification", {Title="Nehemías"; Text="Necesitás el arma"; Duration=2})
+		return
+	end
+	-- Activar el disparo
+	tool:Activate()
+	-- Disparar hacia la posición del Murderer
+	local ev = ReplicatedStorage:FindFirstChild("ShootEvent")
+	if ev and murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart") then
+		ev:FireServer(murderer.Character.HumanoidRootPart.Position)
 	end
 end)
 
 -- Minimizar GUI
 minimize.MouseButton1Click:Connect(function()
-	local hide = frame.AbsoluteSize.Y > 35
-	for _,c in pairs(frame:GetChildren()) do if c~=title and c~=minimize then c.Visible = hide end end
-	frame.Size = hide and UDim2.new(0,260,0,35) or UDim2.new(0,260,0,200)
-	minimize.Text = hide and "+" or "-"
+	local isMinimized = frame.Size.Y.Offset == 200
+	if isMinimized then
+		for _,child in pairs(frame:GetChildren()) do
+			if child ~= title and child ~= minimize then
+				child.Visible = false
+			end
+		end
+		frame.Size = UDim2.new(0, 260, 0, 35)
+		minimize.Text = "+"
+	else
+		for _,child in pairs(frame:GetChildren()) do
+			child.Visible = true
+		end
+		frame.Size = UDim2.new(0, 260, 0, 200)
+		minimize.Text = "-"
+	end
 end)
