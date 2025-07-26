@@ -1,41 +1,48 @@
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
-local screenGui = Instance.new("ScreenGui")
+local screenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 screenGui.Name = "NehemiasInvisibleGUI"
-screenGui.Parent = game:GetService("CoreGui")
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 180, 0, 70)
-frame.Position = UDim2.new(0.5, -90, 0.3, 0)
-frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 220, 0, 100)
+frame.Position = UDim2.new(0.5, -110, 0.3, 0)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
-frame.Parent = screenGui
 
-local title = Instance.new("TextLabel")
-title.Text = "Nehemías"
+local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1, 0, 0, 25)
-title.BackgroundColor3 = Color3.fromRGB(50,50,50)
-title.TextColor3 = Color3.new(1,1,1)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.Text = "Nehemías"
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+title.TextColor3 = Color3.new(1, 1, 1)
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 18
-title.Parent = frame
 
-local invisibleButton = Instance.new("TextButton")
-invisibleButton.Size = UDim2.new(0.8, 0, 0, 35)
-invisibleButton.Position = UDim2.new(0.1, 0, 0, 30)
-invisibleButton.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
-invisibleButton.TextColor3 = Color3.new(1,1,1)
-invisibleButton.Font = Enum.Font.SourceSansBold
-invisibleButton.TextSize = 18
-invisibleButton.Text = "Invisible: OFF"
-invisibleButton.Parent = frame
+local invisibleBtn = Instance.new("TextButton", frame)
+invisibleBtn.Size = UDim2.new(0.8, 0, 0, 30)
+invisibleBtn.Position = UDim2.new(0.1, 0, 0, 30)
+invisibleBtn.Text = "Invisible: OFF"
+invisibleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+invisibleBtn.TextColor3 = Color3.new(1, 1, 1)
+invisibleBtn.Font = Enum.Font.SourceSansBold
+invisibleBtn.TextSize = 16
 
-local invisible = false
+local minimizeBtn = Instance.new("TextButton", frame)
+minimizeBtn.Size = UDim2.new(0, 25, 0, 25)
+minimizeBtn.Position = UDim2.new(1, -30, 0, 0)
+minimizeBtn.Text = "-"
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+minimizeBtn.TextColor3 = Color3.new(1,1,1)
+minimizeBtn.Font = Enum.Font.SourceSansBold
+minimizeBtn.TextSize = 16
+
+-- Variables invisibilidad
+local isInvisible = false
 local clone = nil
-local originalParent = nil
 
 local function setTransparency(model, transparency)
 	for _, part in pairs(model:GetDescendants()) do
@@ -48,60 +55,98 @@ local function setTransparency(model, transparency)
 end
 
 local function enableInvisible()
-	local character = LocalPlayer.Character
-	if not character then return end
-
-	-- Guardar parent para restaurar luego
-	originalParent = character.Parent
-
-	-- Clonar personaje para que vos lo veas
-	clone = character:Clone()
-	clone.Name = "InvisibleClone"
-	clone.Parent = workspace
-
-	-- Poner clone un poco transparente para que vos lo veas
+	local char = LocalPlayer.Character
+	if not char then return end
+	clone = char:Clone()
+	clone.Name = "NehemiasClone"
 	setTransparency(clone, 0.4)
-
-	-- Mover el personaje real fuera de workspace (para que los demás no te vean)
-	character.Parent = nil
+	clone.Parent = workspace
+	char.Parent = nil
+	wait(0.1)
+	char.Parent = workspace
 end
 
 local function disableInvisible()
-	local character = LocalPlayer.Character or clone
-	if not character then return end
-
-	-- Restaurar personaje real a workspace
-	if originalParent then
-		character.Parent = originalParent
-		originalParent = nil
-	end
-
-	-- Quitar clone
-	if clone then
-		clone:Destroy()
-		clone = nil
-	end
-
-	-- Restaurar transparencia normal
-	setTransparency(character, 0)
+	if clone then clone:Destroy() clone = nil end
+	local char = LocalPlayer.Character
+	if not char then return end
+	setTransparency(char, 0)
 end
 
-invisibleButton.MouseButton1Click:Connect(function()
-	invisible = not invisible
-	if invisible then
-		invisibleButton.Text = "Invisible: ON"
-		invisibleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+-- Botón invisible
+invisibleBtn.MouseButton1Click:Connect(function()
+	isInvisible = not isInvisible
+	invisibleBtn.Text = isInvisible and "Invisible: ON" or "Invisible: OFF"
+	invisibleBtn.BackgroundColor3 = isInvisible and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(0, 120, 255)
+
+	if isInvisible then
 		enableInvisible()
 	else
-		invisibleButton.Text = "Invisible: OFF"
-		invisibleButton.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
 		disableInvisible()
 	end
 end)
 
-LocalPlayer.CharacterAdded:Connect(function(char)
+-- Minimizar GUI
+local minimized = false
+minimizeBtn.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	for _, obj in pairs(frame:GetChildren()) do
+		if obj ~= title and obj ~= minimizeBtn then
+			obj.Visible = not minimized
+		end
+	end
+	frame.Size = minimized and UDim2.new(0, 220, 0, 25) or UDim2.new(0, 220, 0, 100)
+	minimizeBtn.Text = minimized and "+" or "-"
+end)
+
+-- Restaurar invisible al respawn
+LocalPlayer.CharacterAdded:Connect(function()
 	wait(1)
-	if invisible then
+	if isInvisible then
 		enableInvisible()
 	end
 end)
+
+-- ESP de jugadores
+local function createESP(player)
+	if player == LocalPlayer then return end
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "NehemiasESP"
+	billboard.Size = UDim2.new(0, 100, 0, 20)
+	billboard.AlwaysOnTop = true
+	billboard.StudsOffset = Vector3.new(0, 3, 0)
+
+	local label = Instance.new("TextLabel", billboard)
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.Text = player.Name
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0.5
+	label.TextSize = 14
+	label.Font = Enum.Font.SourceSansBold
+
+	local function attachESP()
+		if player.Character and player.Character:FindFirstChild("Head") then
+			billboard.Parent = player.Character.Head
+			for _, part in pairs(player.Character:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.Material = Enum.Material.Neon
+					part.Color = Color3.new(1, 1, 1)
+				end
+			end
+		end
+	end
+
+	player.CharacterAdded:Connect(function()
+		wait(1)
+		attachESP()
+	end)
+
+	attachESP()
+end
+
+for _, plr in pairs(Players:GetPlayers()) do
+	createESP(plr)
+end
+
+Players.PlayerAdded:Connect(createESP)
