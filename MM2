@@ -1,15 +1,16 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local StarterGui = game:GetService("StarterGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+
 local LocalPlayer = Players.LocalPlayer
 
--- GUI
+-- GUI Setup
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.Name = "NehemiasGUI"
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 230, 0, 120)
+frame.Size = UDim2.new(0, 230, 0, 130)
 frame.Position = UDim2.new(0.05, 0, 0.2, 0)
 frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 frame.BorderSizePixel = 0
@@ -35,7 +36,7 @@ espToggle.TextSize = 16
 
 local autoShootToggle = Instance.new("TextButton", frame)
 autoShootToggle.Size = UDim2.new(0.9, 0, 0, 30)
-autoShootToggle.Position = UDim2.new(0.05, 0, 0, 70)
+autoShootToggle.Position = UDim2.new(0.05, 0, 0, 75)
 autoShootToggle.Text = "Auto Disparo: OFF"
 autoShootToggle.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
 autoShootToggle.TextColor3 = Color3.new(1,1,1)
@@ -67,8 +68,14 @@ local espEnabled = false
 local autoShootEnabled = false
 local espObjects = {}
 
--- Función para detectar rol
+-- Detectar rol basándonos en roles oficiales
 local function getRole(plr)
+	-- Usamos tags creados por el juego para roles (roblox Murder Mystery 2 usa valores)
+	local roleValue = plr:FindFirstChild("Role") or plr:FindFirstChild("RoleValue") or plr:FindFirstChild("CurrentRole")
+	if roleValue and roleValue:IsA("StringValue") then
+		return roleValue.Value
+	end
+	-- Fallback: buscar armas en Backpack o Character
 	local backpack = plr:FindFirstChildOfClass("Backpack")
 	if backpack then
 		if backpack:FindFirstChild("Gun") then return "Sheriff" end
@@ -88,64 +95,117 @@ local function getColor(role)
 	return Color3.fromRGB(0, 255, 0)
 end
 
--- Activar ESP
-local function updateESP()
+-- Limpiar ESP
+local function clearESP()
 	for _, obj in pairs(espObjects) do obj:Destroy() end
 	table.clear(espObjects)
+end
 
-	for _, plr in pairs(Players:GetPlayers()) do
-		if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-			local billboard = Instance.new("BillboardGui", plr.Character)
-			billboard.Size = UDim2.new(0, 100, 0, 40)
-			billboard.Adornee = plr.Character:FindFirstChild("Head")
-			billboard.AlwaysOnTop = true
+-- Crear ESP en jugador
+local function createESP(plr)
+	if plr == LocalPlayer then return end
+	if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then return end
 
-			local name = Instance.new("TextLabel", billboard)
-			name.Size = UDim2.new(1, 0, 1, 0)
-			name.BackgroundTransparency = 1
-			name.Text = plr.Name
-			name.TextColor3 = getColor(getRole(plr))
-			name.Font = Enum.Font.SourceSansBold
-			name.TextScaled = true
+	local billboard = Instance.new("BillboardGui", plr.Character)
+	billboard.Name = "NehemiasESP"
+	billboard.Size = UDim2.new(0, 100, 0, 40)
+	billboard.Adornee = plr.Character:FindFirstChild("Head")
+	billboard.AlwaysOnTop = true
 
-			for _, part in pairs(plr.Character:GetChildren()) do
-				if part:IsA("BasePart") then
-					local highlight = Instance.new("BoxHandleAdornment", part)
-					highlight.Adornee = part
-					highlight.AlwaysOnTop = true
-					highlight.ZIndex = 10
-					highlight.Size = part.Size + Vector3.new(0.05, 0.05, 0.05)
-					highlight.Transparency = 0.5
-					highlight.Color3 = getColor(getRole(plr))
-					highlight.Name = "ESPPart"
-					table.insert(espObjects, highlight)
-				end
-			end
+	local name = Instance.new("TextLabel", billboard)
+	name.Size = UDim2.new(1, 0, 1, 0)
+	name.BackgroundTransparency = 1
+	name.Text = plr.Name
+	name.TextColor3 = getColor(getRole(plr))
+	name.Font = Enum.Font.SourceSansBold
+	name.TextScaled = true
 
-			table.insert(espObjects, billboard)
+	table.insert(espObjects, billboard)
+
+	for _, part in pairs(plr.Character:GetChildren()) do
+		if part:IsA("BasePart") then
+			local highlight = Instance.new("BoxHandleAdornment", part)
+			highlight.Adornee = part
+			highlight.AlwaysOnTop = true
+			highlight.ZIndex = 10
+			highlight.Size = part.Size + Vector3.new(0.05, 0.05, 0.05)
+			highlight.Transparency = 0.5
+			highlight.Color3 = getColor(getRole(plr))
+			highlight.Name = "ESPPart"
+			table.insert(espObjects, highlight)
 		end
 	end
 end
+
+-- Actualizar ESP para todos
+local function updateESP()
+	clearESP()
+	for _, plr in pairs(Players:GetPlayers()) do
+		createESP(plr)
+	end
+end
+
+-- Detectar si estamos en mapa o lobby
+local function isInGameMap()
+	-- En Murder Mystery 2 el workspace tiene un Folder "Map" solo cuando la ronda está activa
+	return workspace:FindFirstChild("Map") ~= nil
+end
+
+-- Evento para actualizar ESP cuando cambia el estado de ronda
+local function onRoundChanged()
+	if espEnabled then
+		if isInGameMap() then
+			updateESP()
+		else
+			clearESP()
+		end
+	end
+end
+
+-- Actualizar ESP al entrar o salir del mapa, y cuando cambia un jugador
+workspace.ChildAdded:Connect(function(child)
+	if child.Name == "Map" then
+		wait(1) -- Esperar que cargue todo
+		onRoundChanged()
+	end
+end)
+
+workspace.ChildRemoved:Connect(function(child)
+	if child.Name == "Map" then
+		wait(0.5)
+		onRoundChanged()
+	end
+end)
+
+Players.PlayerAdded:Connect(function(plr)
+	plr.CharacterAdded:Connect(function()
+		wait(1)
+		if espEnabled and isInGameMap() then
+			createESP(plr)
+		end
+	end)
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+	onRoundChanged()
+end)
 
 -- Toggle ESP
 espToggle.MouseButton1Click:Connect(function()
 	espEnabled = not espEnabled
 	espToggle.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
 	espToggle.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(100, 100, 100)
-
 	if espEnabled then
-		updateESP()
+		onRoundChanged()
 	else
-		for _, obj in pairs(espObjects) do obj:Destroy() end
-		table.clear(espObjects)
+		clearESP()
 	end
 end)
 
--- Disparo al murder
-shootButton.MouseButton1Click:Connect(function()
+-- Función para disparar al murderer
+local function shootAtMurderer()
 	local char = LocalPlayer.Character
 	if not char then return end
-
 	local tool = char:FindFirstChild("Gun")
 	if not tool then
 		StarterGui:SetCore("SendNotification", {
@@ -158,14 +218,18 @@ shootButton.MouseButton1Click:Connect(function()
 
 	for _, plr in pairs(Players:GetPlayers()) do
 		if plr ~= LocalPlayer and getRole(plr) == "Murderer" and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-			local args = {
-				[1] = plr.Character.HumanoidRootPart.Position
-			}
-			tool:Activate()
-			ReplicatedStorage:WaitForChild("ShootEvent"):FireServer(unpack(args))
+			-- Disparo al murderer (aquí asumimos que hay un evento para disparar)
+			local shootEvent = ReplicatedStorage:FindFirstChild("ShootEvent")
+			if shootEvent then
+				local args = {
+					[1] = plr.Character.HumanoidRootPart.Position
+				}
+				tool:Activate()
+				shootEvent:FireServer(unpack(args))
+			end
 		end
 	end
-end)
+end
 
 -- Toggle Auto Disparo
 autoShootToggle.MouseButton1Click:Connect(function()
@@ -173,6 +237,10 @@ autoShootToggle.MouseButton1Click:Connect(function()
 	autoShootToggle.Text = "Auto Disparo: " .. (autoShootEnabled and "ON" or "OFF")
 	autoShootToggle.BackgroundColor3 = autoShootEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(100, 100, 100)
 	shootButton.Visible = autoShootEnabled
+end)
+
+shootButton.MouseButton1Click:Connect(function()
+	shootAtMurderer()
 end)
 
 -- Minimizar GUI
@@ -184,6 +252,6 @@ minimize.MouseButton1Click:Connect(function()
 			child.Visible = not minimized
 		end
 	end
-	frame.Size = minimized and UDim2.new(0, 230, 0, 25) or UDim2.new(0, 230, 0, 120)
+	frame.Size = minimized and UDim2.new(0, 230, 0, 25) or UDim2.new(0, 230, 0, 130)
 	minimize.Text = minimized and "+" or "-"
 end)
