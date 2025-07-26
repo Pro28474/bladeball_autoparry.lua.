@@ -1,7 +1,12 @@
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
-local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 
+repeat wait() until LocalPlayer.Character
+
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "NehemiasMM2"
 screenGui.ResetOnSpawn = false
@@ -24,10 +29,7 @@ title.TextSize = 20
 title.BackgroundColor3 = Color3.fromRGB(60,60,60)
 title.TextColor3 = Color3.new(1,1,1)
 title.Parent = frame
-title.Active = true -- Para que reciba clics
-title.MouseButton1Click = nil -- No es botón, se usa evento diferente
 
--- Los botones que quieres dentro del frame
 local espBtn = Instance.new("TextButton")
 espBtn.Size = UDim2.new(0.9,0,0,30)
 espBtn.Position = UDim2.new(0.05,0,0,40)
@@ -58,22 +60,189 @@ autoBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
 autoBtn.TextColor3 = Color3.new(1,1,1)
 autoBtn.Parent = frame
 
--- Función para mostrar/ocultar botones y cambiar tamaño del frame
-local minimized = false
-local function toggleMinimize()
-	minimized = not minimized
-	for _,child in pairs(frame:GetChildren()) do
-		if child ~= title then
-			child.Visible = not minimized
+local timeLabel = Instance.new("TextLabel")
+timeLabel.Size = UDim2.new(0,160,0,40)
+timeLabel.Position = UDim2.new(0.5,-80,0.05,0)
+timeLabel.BackgroundTransparency = 1
+timeLabel.Font = Enum.Font.Freedoka
+timeLabel.TextSize = 28
+timeLabel.TextColor3 = Color3.new(1,1,1)
+timeLabel.TextStrokeColor3 = Color3.new(0,0,0)
+timeLabel.TextStrokeTransparency = 0
+timeLabel.Visible = false
+timeLabel.Parent = screenGui
+
+local shootBtn = Instance.new("TextButton")
+shootBtn.Size = UDim2.new(0,110,0,40)
+shootBtn.Position = UDim2.new(0.5,-55,0.7,0)
+shootBtn.Text = "Disparar"
+shootBtn.Font = Enum.Font.Freedoka
+shootBtn.TextSize = 18
+shootBtn.BackgroundColor3 = Color3.fromRGB(0,120,255)
+shootBtn.TextColor3 = Color3.new(1,1,1)
+shootBtn.Visible = false
+shootBtn.Active = true
+shootBtn.Draggable = true
+shootBtn.Parent = screenGui
+
+local espOn, timeOn, autoOn = false, false, false
+local espTrack = {}
+local roundStart = 0
+local roundDuration = 150
+local inRound = false
+
+local function getRoles()
+	local murderer, sheriff = nil, nil
+	for _,plr in pairs(Players:GetPlayers()) do
+		local bp = plr:FindFirstChildOfClass("Backpack")
+		if bp then
+			if bp:FindFirstChild("Knife") then murderer = plr end
+			if bp:FindFirstChild("Gun") then sheriff = plr end
+		end
+		if plr.Character then
+			if plr.Character:FindFirstChild("Knife") then murderer = plr end
+			if plr.Character:FindFirstChild("Gun") then sheriff = plr end
 		end
 	end
-	frame.Size = minimized and UDim2.new(0, 260, 0, 30) or UDim2.new(0, 260, 0, 200)
+	return murderer, sheriff
 end
 
--- Como TextLabel no tiene MouseButton1Click, usamos MouseButton1Down o MouseButton1Click no existe
--- Mejor usar MouseButton1Down en un TextButton, pero como es TextLabel usamos InputBegan
-title.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		toggleMinimize()
+local function roleColor(plr)
+	if not inRound then return Color3.fromRGB(0,255,0) end
+	local m, s = getRoles()
+	if plr == m then return Color3.fromRGB(255,0,0) end
+	if plr == s then return Color3.fromRGB(0,0,255) end
+	return Color3.fromRGB(0,255,0)
+end
+
+local function clearESP()
+	for _,obj in pairs(espTrack) do
+		if obj and obj.Parent then
+			obj:Destroy()
+		end
+	end
+	table.clear(espTrack)
+end
+
+local function updateESP()
+	clearESP()
+	for _,plr in pairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+			local clr = roleColor(plr)
+			local bi = Instance.new("BillboardGui", plr.Character)
+			bi.Size = UDim2.new(0,100,0,40)
+			bi.Adornee = plr.Character:FindFirstChild("Head")
+			bi.AlwaysOnTop = true
+			local lbl = Instance.new("TextLabel", bi)
+			lbl.Size = UDim2.new(1,1)
+			lbl.BackgroundTransparency = 1
+			lbl.Text = plr.Name
+			lbl.TextColor3 = clr
+			lbl.Font = Enum.Font.Freedoka
+			lbl.TextScaled = true
+			table.insert(espTrack, bi)
+
+			for _,part in pairs(plr.Character:GetChildren()) do
+				if part:IsA("BasePart") then
+					local box = Instance.new("BoxHandleAdornment", part)
+					box.Adornee = part
+					box.AlwaysOnTop = true
+					box.ZIndex = 5
+					box.Size = part.Size + Vector3.new(0.05,0.05,0.05)
+					box.Transparency = 0.5
+					box.Color3 = clr
+					table.insert(espTrack, box)
+				end
+			end
+		end
+	end
+end
+
+RunService.RenderStepped:Connect(function()
+	if inRound and timeOn then
+		local now = os.time()
+		local elapsed = now - roundStart
+		local remaining = math.max(0, roundDuration - elapsed)
+		local m = math.floor(remaining / 60)
+		local s = remaining % 60
+		timeLabel.Text = string.format("%d:%02d", m, s)
+		if remaining <= 0 then
+			timeLabel.Visible = false
+		else
+			timeLabel.Visible = true
+		end
+	end
+end)
+
+workspace.ChildAdded:Connect(function(c)
+	if c.Name == "Map" then
+		wait(1)
+		roundStart = os.time()
+		inRound = true
+		if timeOn then timeLabel.Visible = true end
+		if espOn then updateESP() end
+	end
+end)
+
+workspace.ChildRemoved:Connect(function(c)
+	if c.Name == "Map" then
+		inRound = false
+		timeLabel.Visible = false
+		clearESP()
+	end
+end)
+
+Players.PlayerAdded:Connect(function()
+	if espOn and inRound then updateESP() end
+end)
+
+Players.PlayerRemoving:Connect(function()
+	if espOn and inRound then updateESP() end
+end)
+
+espBtn.MouseButton1Click:Connect(function()
+	espOn = not espOn
+	espBtn.Text = "ESP: " .. (espOn and "ON" or "OFF")
+	espBtn.BackgroundColor3 = espOn and Color3.fromRGB(0,170,0) or Color3.fromRGB(100,100,100)
+	if espOn and inRound then updateESP() else clearESP() end
+end)
+
+timeBtn.MouseButton1Click:Connect(function()
+	timeOn = not timeOn
+	timeBtn.Text = "Tiempo de ronda: " .. (timeOn and "ON" or "OFF")
+	timeBtn.BackgroundColor3 = timeOn and Color3.fromRGB(0,170,0) or Color3.fromRGB(100,100,100)
+	if timeOn and inRound then
+		timeLabel.Visible = true
+	else
+		timeLabel.Visible = false
+	end
+end)
+
+autoBtn.MouseButton1Click:Connect(function()
+	autoOn = not autoOn
+	autoBtn.Text = "Auto Disparo: " .. (autoOn and "ON" or "OFF")
+	autoBtn.BackgroundColor3 = autoOn and Color3.fromRGB(0,170,0) or Color3.fromRGB(100,100,100)
+	shootBtn.Visible = autoOn
+end)
+
+shootBtn.MouseButton1Click:Connect(function()
+	local murderer, sheriff = getRoles()
+	if not murderer or not sheriff then
+		StarterGui:SetCore("SendNotification", {Title="Nehemías"; Text="No se detectó murderer o sheriff"; Duration=2})
+		return
+	end
+	if LocalPlayer ~= sheriff then
+		StarterGui:SetCore("SendNotification", {Title="Nehemías"; Text="Solo el sheriff puede disparar"; Duration=2})
+		return
+	end
+	local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")
+	if not tool then
+		StarterGui:SetCore("SendNotification", {Title="Nehemías"; Text="Necesitás el arma"; Duration=2})
+		return
+	end
+	tool:Activate()
+	local ev = ReplicatedStorage:FindFirstChild("ShootEvent")
+	if ev and murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart") then
+		ev:FireServer(murderer.Character.HumanoidRootPart.Position)
 	end
 end)
