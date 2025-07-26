@@ -1,0 +1,147 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+
+local autoParryEnabled = true
+local hitboxEnabled = true
+local connection
+local fakeHitbox
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+
+-- Crear GUI estilo hacerrato
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "NehemiasBladeBallGUI"
+screenGui.Parent = game:GetService("CoreGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 160)
+frame.Position = UDim2.new(0.5, -130, 0.3, 0)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+
+local title = Instance.new("TextLabel")
+title.Text = "Nehemías"
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+title.Parent = frame
+
+local function createButton(text, posY, color)
+	local btn = Instance.new("TextButton")
+	btn.Text = text
+	btn.Size = UDim2.new(0.8, 0, 0, 40)
+	btn.Position = UDim2.new(0.1, 0, 0, posY)
+	btn.BackgroundColor3 = color
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Font = Enum.Font.GothamSemibold
+	btn.TextSize = 18
+	btn.AutoButtonColor = false
+	btn.Parent = frame
+	return btn
+end
+
+local autoParryBtn = createButton("Auto Parry: ON", 40, Color3.fromRGB(0, 170, 0))
+local hitboxBtn = createButton("Hitbox: ON", 90, Color3.fromRGB(0, 120, 255))
+
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Text = "-"
+minimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+minimizeBtn.Position = UDim2.new(1, -35, 0, 2)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+minimizeBtn.TextColor3 = Color3.new(1, 1, 1)
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.TextSize = 24
+minimizeBtn.Parent = frame
+
+local minimized = false
+minimizeBtn.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	for _, child in pairs(frame:GetChildren()) do
+		if child ~= title and child ~= minimizeBtn then
+			child.Visible = not minimized
+		end
+	end
+	frame.Size = minimized and UDim2.new(0, 260, 0, 35) or UDim2.new(0, 260, 0, 160)
+	minimizeBtn.Text = minimized and "+" or "-"
+end)
+
+-- Hitbox invisible extendida para pegar bola de lejos
+local function createHitbox()
+	if fakeHitbox then fakeHitbox:Destroy() end
+
+	if not hitboxEnabled then return end
+
+	local root = Character and Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		fakeHitbox = Instance.new("Part")
+		fakeHitbox.Name = "Hitbox"
+		fakeHitbox.Size = Vector3.new(25, 25, 25) -- zona grande para pegar de lejos
+		fakeHitbox.Transparency = 1
+		fakeHitbox.Anchored = false
+		fakeHitbox.CanCollide = false
+		fakeHitbox.Massless = true
+		fakeHitbox.Parent = root
+
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = root
+		weld.Part1 = fakeHitbox
+		weld.Parent = fakeHitbox
+	end
+end
+
+-- Detectar respawn para recrear hitbox
+LocalPlayer.CharacterAdded:Connect(function(char)
+	Character = char
+	wait(1)
+	createHitbox()
+end)
+
+-- Auto Parry: disparar evento al estar cerca de la bola
+local function getBall()
+	for _, obj in pairs(workspace:GetChildren()) do
+		if obj:IsA("BasePart") and obj.Name:lower():find("ball") then
+			return obj
+		end
+	end
+end
+
+local function startAutoParry()
+	if connection then connection:Disconnect() end
+	connection = RunService.RenderStepped:Connect(function()
+		if not autoParryEnabled then return end
+		local ball = getBall()
+		if ball and Character and Character:FindFirstChild("HumanoidRootPart") then
+			local dist = (ball.Position - Character.HumanoidRootPart.Position).Magnitude
+			if dist < 20 then -- alcance extendido
+				local remote = ReplicatedStorage:FindFirstChild("RemoteEvent")
+				if remote then
+					remote:FireServer("Parry", true)
+				end
+			end
+		end
+	end)
+end
+
+-- Botones toggles
+autoParryBtn.MouseButton1Click:Connect(function()
+	autoParryEnabled = not autoParryEnabled
+	autoParryBtn.Text = "Auto Parry: " .. (autoParryEnabled and "ON" or "OFF")
+	autoParryBtn.BackgroundColor3 = autoParryEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
+end)
+
+hitboxBtn.MouseButton1Click:Connect(function()
+	hitboxEnabled = not hitboxEnabled
+	hitboxBtn.Text = "Hitbox: " .. (hitboxEnabled and "ON" or "OFF")
+	hitboxBtn.BackgroundColor3 = hitboxEnabled and Color3.fromRGB(0, 120, 255) or Color3.fromRGB(120, 0, 0)
+	createHitbox()
+end)
+
+-- Iniciar
+createHitbox()
+startAutoParry()
