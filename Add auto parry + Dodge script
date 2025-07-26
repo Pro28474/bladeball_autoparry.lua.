@@ -1,110 +1,139 @@
--- Blade Ball Auto Parry + Auto Spam + Auto Dodge + GUI
--- Por Nehemías (tu nombre) - personalizado para móvil y Delta Executor
+-- Script Blade Ball Auto Parry + Auto Click + Hitbox ampliado (con GUI y título)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local VirtualInput = game:GetService("VirtualInputManager")
 local UserInputService = game:GetService("UserInputService")
 
-local player = Players.LocalPlayer
-local char = player.Character or player.CharacterAdded:Wait()
+local lp = Players.LocalPlayer
+local char = lp.Character or lp.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 
-local UIS = UserInputService
+local autoParry = false
+local autoClick = false
+local hitboxBola = true
 
--- Configuración
-local AutoParry = true
-local AutoSpam = false
-local AutoDash = true
-
-local ParryDistance = 22
-local DashDistance = 15
-local DashCooldown = 1
-local lastDash = 0
+local tool = nil
 
 -- Crear GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BladeBallHelper"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
+local screenGui = Instance.new("ScreenGui", lp.PlayerGui)
+screenGui.Name = "AutoBladeBallGUI"
 
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 160, 0, 100)
-Frame.Position = UDim2.new(0, 10, 0, 10)
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Frame.BorderSizePixel = 0
-Frame.Parent = ScreenGui
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 200, 0, 130)
+frame.Position = UDim2.new(0, 10, 0, 10)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BackgroundTransparency = 0.3
+frame.BorderSizePixel = 0
 
-local function CreateToggle(text, default, callback)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 25)
-    btn.Position = UDim2.new(0, 5, 0, 5 + (#Frame:GetChildren()-1)*30)
-    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    btn.TextColor3 = Color3.new(1,1,1)
-    btn.Text = text .. ": " .. (default and "ON" or "OFF")
-    btn.Parent = Frame
+-- Título arriba
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "Nehemías"
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 24
+title.TextColor3 = Color3.fromRGB(0, 255, 255)
+title.TextStrokeTransparency = 0.7
+title.TextScaled = true
 
-    local state = default
+local function createToggle(text, yPos, callback)
+    local btn = Instance.new("TextButton", frame)
+    btn.Size = UDim2.new(1, -20, 0, 30)
+    btn.Position = UDim2.new(0, 10, 0, yPos)
+    btn.Text = text .. ": OFF"
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 18
+    btn.AutoButtonColor = true
+
+    local toggled = false
     btn.MouseButton1Click:Connect(function()
-        state = not state
-        btn.Text = text .. ": " .. (state and "ON" or "OFF")
-        callback(state)
+        toggled = not toggled
+        btn.Text = text .. (toggled and ": ON" or ": OFF")
+        callback(toggled)
     end)
-    return btn
 end
 
--- Toggle botones para controlar funciones
-CreateToggle("Auto Parry", AutoParry, function(state) AutoParry = state end)
-CreateToggle("Auto Spam", AutoSpam, function(state) AutoSpam = state end)
-CreateToggle("Auto Dash", AutoDash, function(state) AutoDash = state end)
+-- Crear botones para activar/desactivar
+createToggle("Auto Parry", 40, function(state) autoParry = state end)
+createToggle("Auto Click", 80, function(state) autoClick = state end)
 
--- Función para presionar tecla F (Parry)
-local function pressParry()
-    VirtualInput:SendKeyEvent(true, Enum.KeyCode.F, false, game)
-    task.wait(0.05)
-    VirtualInput:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+-- Aumentar hitbox del jugador (herramienta)
+local function expandPlayerHitbox()
+    tool = lp.Character and lp.Character:FindFirstChildOfClass("Tool")
+    if not tool then
+        tool = lp.Backpack:FindFirstChildOfClass("Tool")
+    end
+    if tool and tool.Handle then
+        if not tool:FindFirstChild("ExtendedHitbox") then
+            local hitbox = Instance.new("Part")
+            hitbox.Name = "ExtendedHitbox"
+            hitbox.Size = Vector3.new(10, 10, 10)
+            hitbox.Transparency = 0.7
+            hitbox.CanCollide = false
+            hitbox.Anchored = false
+            hitbox.Massless = true
+            hitbox.Color = Color3.new(1, 0, 0)
+            hitbox.Material = Enum.Material.ForceField
+            hitbox.Parent = tool
+
+            local weld = Instance.new("WeldConstraint")
+            weld.Part0 = tool.Handle
+            weld.Part1 = hitbox
+            weld.Parent = hitbox
+        end
+    end
 end
 
--- Función para usar Dash (tecla Q)
-local function pressDash()
-    VirtualInput:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
-    task.wait(0.05)
-    VirtualInput:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
+-- Crear hitbox visible en bola
+local function applyHitboxToBall(ball)
+    if ball and not ball:FindFirstChild("HitboxPart") then
+        local hitbox = Instance.new("Part")
+        hitbox.Name = "HitboxPart"
+        hitbox.Size = Vector3.new(6, 6, 6)
+        hitbox.Transparency = 0.6
+        hitbox.Anchored = true
+        hitbox.CanCollide = false
+        hitbox.Color = Color3.fromRGB(255, 0, 0)
+        hitbox.Material = Enum.Material.ForceField
+        hitbox.Parent = ball
+
+        RunService.Heartbeat:Connect(function()
+            if ball and ball:IsDescendantOf(workspace) then
+                hitbox.Position = ball.Position
+            else
+                hitbox:Destroy()
+            end
+        end)
+    end
 end
 
--- Auto Spam loop
-task.spawn(function()
-    while true do
-        if AutoSpam then
-            pressParry()
-            task.wait(0.25)
-        else
-            task.wait(0.1)
+-- Auto Parry loop
+RunService.Heartbeat:Connect(function()
+    if not autoParry then return end
+    expandPlayerHitbox()
+    if not tool then return end
+    if not char or not hrp then return end
+
+    for _, ball in pairs(workspace:GetDescendants()) do
+        if ball.Name:lower():find("ball") and ball:IsA("Part") then
+            if hitboxBola then applyHitboxToBall(ball) end
+            local distance = (ball.Position - hrp.Position).Magnitude
+            if distance <= 30 then
+                tool:Activate()
+            end
         end
     end
 end)
 
--- Main loop Auto Parry + Auto Dash
-RunService.RenderStepped:Connect(function()
-    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
-    hrp = player.Character.HumanoidRootPart
-
-    local ball = workspace:FindFirstChild("Ball")
-    if ball and ball:IsA("BasePart") then
-        local dist = (ball.Position - hrp.Position).Magnitude
-        local velocity = ball.Velocity
-        local approaching = velocity.Unit:Dot((hrp.Position - ball.Position).Unit) > 0.5
-
-        if AutoParry and dist <= ParryDistance and approaching then
-            pressParry()
-        end
-
-        if AutoDash and dist <= DashDistance and approaching then
-            local now = tick()
-            if now - lastDash >= DashCooldown then
-                pressDash()
-                lastDash = now
-            end
+-- Auto Click loop
+task.spawn(function()
+    while true do
+        task.wait(0.4)
+        if autoClick and tool then
+            tool:Activate()
         end
     end
 end)
