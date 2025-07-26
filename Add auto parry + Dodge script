@@ -1,8 +1,5 @@
--- Script Blade Ball Auto Parry + Auto Click + Hitbox ampliado (con GUI y título)
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 
 local lp = Players.LocalPlayer
 local char = lp.Character or lp.CharacterAdded:Wait()
@@ -24,10 +21,46 @@ frame.Position = UDim2.new(0, 10, 0, 10)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.BackgroundTransparency = 0.3
 frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = false -- Vamos a hacer draggable manual para más control
+
+-- Variables para mover ventana
+local dragging = false
+local dragInput, dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    frame.Position = UDim2.new(
+        startPos.X.Scale,
+        startPos.X.Offset + delta.X,
+        startPos.Y.Scale,
+        startPos.Y.Offset + delta.Y
+    )
+end
+
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+        update(input)
+    end
+end)
 
 -- Título arriba
 local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1, 0, 0, 30)
+title.Size = UDim2.new(1, -30, 0, 30)
 title.Position = UDim2.new(0, 0, 0, 0)
 title.BackgroundTransparency = 1
 title.Text = "Nehemías"
@@ -36,6 +69,41 @@ title.TextSize = 24
 title.TextColor3 = Color3.fromRGB(0, 255, 255)
 title.TextStrokeTransparency = 0.7
 title.TextScaled = true
+
+-- Botón minimizar
+local minimizeBtn = Instance.new("TextButton", frame)
+minimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+minimizeBtn.Position = UDim2.new(1, -30, 0, 0)
+minimizeBtn.Text = "-"
+minimizeBtn.Font = Enum.Font.SourceSansBold
+minimizeBtn.TextSize = 24
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+minimizeBtn.TextColor3 = Color3.new(1, 1, 1)
+minimizeBtn.AutoButtonColor = true
+
+local toggled = false
+minimizeBtn.MouseButton1Click:Connect(function()
+    toggled = not toggled
+    if toggled then
+        -- Minimizar: esconder botones
+        for _, child in pairs(frame:GetChildren()) do
+            if child:IsA("TextButton") and child ~= minimizeBtn then
+                child.Visible = false
+            end
+        end
+        frame.Size = UDim2.new(0, 200, 0, 30)
+        minimizeBtn.Text = "+"
+    else
+        -- Expandir: mostrar botones
+        for _, child in pairs(frame:GetChildren()) do
+            if child:IsA("TextButton") and child ~= minimizeBtn then
+                child.Visible = true
+            end
+        end
+        frame.Size = UDim2.new(0, 200, 0, 130)
+        minimizeBtn.Text = "-"
+    end
+end)
 
 local function createToggle(text, yPos, callback)
     local btn = Instance.new("TextButton", frame)
@@ -48,15 +116,14 @@ local function createToggle(text, yPos, callback)
     btn.TextSize = 18
     btn.AutoButtonColor = true
 
-    local toggled = false
+    local toggledBtn = false
     btn.MouseButton1Click:Connect(function()
-        toggled = not toggled
-        btn.Text = text .. (toggled and ": ON" or ": OFF")
-        callback(toggled)
+        toggledBtn = not toggledBtn
+        btn.Text = text .. (toggledBtn and ": ON" or ": OFF")
+        callback(toggledBtn)
     end)
 end
 
--- Crear botones para activar/desactivar
 createToggle("Auto Parry", 40, function(state) autoParry = state end)
 createToggle("Auto Click", 80, function(state) autoClick = state end)
 
@@ -67,73 +134,3 @@ local function expandPlayerHitbox()
         tool = lp.Backpack:FindFirstChildOfClass("Tool")
     end
     if tool and tool.Handle then
-        if not tool:FindFirstChild("ExtendedHitbox") then
-            local hitbox = Instance.new("Part")
-            hitbox.Name = "ExtendedHitbox"
-            hitbox.Size = Vector3.new(10, 10, 10)
-            hitbox.Transparency = 0.7
-            hitbox.CanCollide = false
-            hitbox.Anchored = false
-            hitbox.Massless = true
-            hitbox.Color = Color3.new(1, 0, 0)
-            hitbox.Material = Enum.Material.ForceField
-            hitbox.Parent = tool
-
-            local weld = Instance.new("WeldConstraint")
-            weld.Part0 = tool.Handle
-            weld.Part1 = hitbox
-            weld.Parent = hitbox
-        end
-    end
-end
-
--- Crear hitbox visible en bola
-local function applyHitboxToBall(ball)
-    if ball and not ball:FindFirstChild("HitboxPart") then
-        local hitbox = Instance.new("Part")
-        hitbox.Name = "HitboxPart"
-        hitbox.Size = Vector3.new(6, 6, 6)
-        hitbox.Transparency = 0.6
-        hitbox.Anchored = true
-        hitbox.CanCollide = false
-        hitbox.Color = Color3.fromRGB(255, 0, 0)
-        hitbox.Material = Enum.Material.ForceField
-        hitbox.Parent = ball
-
-        RunService.Heartbeat:Connect(function()
-            if ball and ball:IsDescendantOf(workspace) then
-                hitbox.Position = ball.Position
-            else
-                hitbox:Destroy()
-            end
-        end)
-    end
-end
-
--- Auto Parry loop
-RunService.Heartbeat:Connect(function()
-    if not autoParry then return end
-    expandPlayerHitbox()
-    if not tool then return end
-    if not char or not hrp then return end
-
-    for _, ball in pairs(workspace:GetDescendants()) do
-        if ball.Name:lower():find("ball") and ball:IsA("Part") then
-            if hitboxBola then applyHitboxToBall(ball) end
-            local distance = (ball.Position - hrp.Position).Magnitude
-            if distance <= 30 then
-                tool:Activate()
-            end
-        end
-    end
-end)
-
--- Auto Click loop
-task.spawn(function()
-    while true do
-        task.wait(0.4)
-        if autoClick and tool then
-            tool:Activate()
-        end
-    end
-end)
