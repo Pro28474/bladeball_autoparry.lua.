@@ -1,174 +1,189 @@
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local StarterGui = game:GetService("StarterGui")
-local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
 
-local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+-- GUI
+local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+gui.Name = "NehemiasGUI"
 
--- Crear GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "NehemiasMM2"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = playerGui
-
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 280, 0, 180)
-frame.Position = UDim2.new(0.05, 0, 0.3, 0)
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 230, 0, 120)
+frame.Position = UDim2.new(0.05, 0, 0.2, 0)
 frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
-frame.Parent = screenGui
 
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 40)
-title.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-title.TextColor3 = Color3.new(1, 1, 1)
-title.Font = Enum.Font.Freedoka
-title.TextSize = 24
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 25)
 title.Text = "Nehemías"
-title.Parent = frame
+title.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 20
 
-local function createButton(text, posY)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 40)
-    btn.Position = UDim2.new(0.05, 0, 0, posY)
-    btn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-    btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.Font = Enum.Font.Freedoka
-    btn.TextSize = 18
-    btn.Text = text
-    btn.Parent = frame
-    return btn
+local espToggle = Instance.new("TextButton", frame)
+espToggle.Size = UDim2.new(0.9, 0, 0, 30)
+espToggle.Position = UDim2.new(0.05, 0, 0, 35)
+espToggle.Text = "ESP: OFF"
+espToggle.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+espToggle.TextColor3 = Color3.new(1,1,1)
+espToggle.Font = Enum.Font.SourceSans
+espToggle.TextSize = 16
+
+local autoShootToggle = Instance.new("TextButton", frame)
+autoShootToggle.Size = UDim2.new(0.9, 0, 0, 30)
+autoShootToggle.Position = UDim2.new(0.05, 0, 0, 70)
+autoShootToggle.Text = "Auto Disparo: OFF"
+autoShootToggle.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+autoShootToggle.TextColor3 = Color3.new(1,1,1)
+autoShootToggle.Font = Enum.Font.SourceSans
+autoShootToggle.TextSize = 16
+
+local minimize = Instance.new("TextButton", frame)
+minimize.Size = UDim2.new(0, 20, 0, 20)
+minimize.Position = UDim2.new(1, -25, 0, 2)
+minimize.Text = "-"
+minimize.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+minimize.TextColor3 = Color3.new(1,1,1)
+
+-- Botón de disparar flotante
+local shootButton = Instance.new("TextButton", gui)
+shootButton.Size = UDim2.new(0, 100, 0, 40)
+shootButton.Position = UDim2.new(0.5, -50, 0.7, 0)
+shootButton.Text = "🔫 Disparar"
+shootButton.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+shootButton.TextColor3 = Color3.new(1,1,1)
+shootButton.Font = Enum.Font.SourceSansBold
+shootButton.TextSize = 18
+shootButton.Visible = false
+shootButton.Active = true
+shootButton.Draggable = true
+
+-- Variables
+local espEnabled = false
+local autoShootEnabled = false
+local espObjects = {}
+
+-- Función para detectar rol
+local function getRole(plr)
+	local backpack = plr:FindFirstChildOfClass("Backpack")
+	if backpack then
+		if backpack:FindFirstChild("Gun") then return "Sheriff" end
+		if backpack:FindFirstChild("Knife") then return "Murderer" end
+	end
+	if plr.Character then
+		if plr.Character:FindFirstChild("Gun") then return "Sheriff" end
+		if plr.Character:FindFirstChild("Knife") then return "Murderer" end
+	end
+	return "Innocent"
 end
 
-local espBtn = createButton("ESP: OFF", 50)
-local autoBtn = createButton("Auto Disparo: OFF", 100)
-
-local shootBtn = Instance.new("TextButton")
-shootBtn.Size = UDim2.new(0, 120, 0, 45)
-shootBtn.Position = UDim2.new(0.5, -60, 0.7, 0)
-shootBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
-shootBtn.TextColor3 = Color3.new(1, 1, 1)
-shootBtn.Font = Enum.Font.Freedoka
-shootBtn.TextSize = 20
-shootBtn.Text = "Disparar"
-shootBtn.Visible = false
-shootBtn.Active = true
-shootBtn.Draggable = true
-shootBtn.Parent = screenGui
-
-local espOn = false
-local autoOn = false
-local espTrack = {}
-
-local function getRoles()
-    local murderer, sheriff = nil, nil
-    for _, plr in pairs(Players:GetPlayers()) do
-        local bp = plr:FindFirstChildOfClass("Backpack")
-        if bp then
-            if bp:FindFirstChild("Knife") then murderer = plr end
-            if bp:FindFirstChild("Gun") then sheriff = plr end
-        end
-        if plr.Character then
-            if plr.Character:FindFirstChild("Knife") then murderer = plr end
-            if plr.Character:FindFirstChild("Gun") then sheriff = plr end
-        end
-    end
-    return murderer, sheriff
+-- Colores según rol
+local function getColor(role)
+	if role == "Murderer" then return Color3.fromRGB(255, 0, 0) end
+	if role == "Sheriff" then return Color3.fromRGB(0, 0, 255) end
+	return Color3.fromRGB(0, 255, 0)
 end
 
-local function roleColor(plr)
-    local m, s = getRoles()
-    if plr == m then return Color3.fromRGB(255, 0, 0) end
-    if plr == s then return Color3.fromRGB(0, 0, 255) end
-    return Color3.fromRGB(0, 255, 0)
-end
-
-local function clearESP()
-    for _, obj in pairs(espTrack) do
-        if obj and obj.Parent then
-            obj:Destroy()
-        end
-    end
-    table.clear(espTrack)
-end
-
+-- Activar ESP
 local function updateESP()
-    clearESP()
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character:FindFirstChild("Head") then
-            local clr = roleColor(plr)
-            local bi = Instance.new("BillboardGui")
-            bi.Size = UDim2.new(0, 100, 0, 40)
-            bi.Adornee = plr.Character.Head
-            bi.AlwaysOnTop = true
-            bi.Parent = plr.Character
+	for _, obj in pairs(espObjects) do obj:Destroy() end
+	table.clear(espObjects)
 
-            local lbl = Instance.new("TextLabel")
-            lbl.Size = UDim2.new(1, 0, 1, 0)
-            lbl.BackgroundTransparency = 1
-            lbl.Text = plr.Name
-            lbl.TextColor3 = clr
-            lbl.Font = Enum.Font.Freedoka
-            lbl.TextScaled = true
-            lbl.Parent = bi
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+			local billboard = Instance.new("BillboardGui", plr.Character)
+			billboard.Size = UDim2.new(0, 100, 0, 40)
+			billboard.Adornee = plr.Character:FindFirstChild("Head")
+			billboard.AlwaysOnTop = true
 
-            table.insert(espTrack, bi)
+			local name = Instance.new("TextLabel", billboard)
+			name.Size = UDim2.new(1, 0, 1, 0)
+			name.BackgroundTransparency = 1
+			name.Text = plr.Name
+			name.TextColor3 = getColor(getRole(plr))
+			name.Font = Enum.Font.SourceSansBold
+			name.TextScaled = true
 
-            for _, part in pairs(plr.Character:GetChildren()) do
-                if part:IsA("BasePart") then
-                    local box = Instance.new("BoxHandleAdornment")
-                    box.Adornee = part
-                    box.AlwaysOnTop = true
-                    box.ZIndex = 5
-                    box.Size = part.Size + Vector3.new(0.05, 0.05, 0.05)
-                    box.Transparency = 0.5
-                    box.Color3 = clr
-                    box.Parent = part
-                    table.insert(espTrack, box)
-                end
-            end
-        end
-    end
+			for _, part in pairs(plr.Character:GetChildren()) do
+				if part:IsA("BasePart") then
+					local highlight = Instance.new("BoxHandleAdornment", part)
+					highlight.Adornee = part
+					highlight.AlwaysOnTop = true
+					highlight.ZIndex = 10
+					highlight.Size = part.Size + Vector3.new(0.05, 0.05, 0.05)
+					highlight.Transparency = 0.5
+					highlight.Color3 = getColor(getRole(plr))
+					highlight.Name = "ESPPart"
+					table.insert(espObjects, highlight)
+				end
+			end
+
+			table.insert(espObjects, billboard)
+		end
+	end
 end
 
-espBtn.MouseButton1Click:Connect(function()
-    espOn = not espOn
-    espBtn.Text = "ESP: " .. (espOn and "ON" or "OFF")
-    espBtn.BackgroundColor3 = espOn and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(100, 100, 100)
-    if espOn then
-        updateESP()
-    else
-        clearESP()
-    end
+-- Toggle ESP
+espToggle.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	espToggle.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
+	espToggle.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(100, 100, 100)
+
+	if espEnabled then
+		updateESP()
+	else
+		for _, obj in pairs(espObjects) do obj:Destroy() end
+		table.clear(espObjects)
+	end
 end)
 
-autoBtn.MouseButton1Click:Connect(function()
-    autoOn = not autoOn
-    autoBtn.Text = "Auto Disparo: " .. (autoOn and "ON" or "OFF")
-    autoBtn.BackgroundColor3 = autoOn and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(100, 100, 100)
-    shootBtn.Visible = autoOn
+-- Disparo al murder
+shootButton.MouseButton1Click:Connect(function()
+	local char = LocalPlayer.Character
+	if not char then return end
+
+	local tool = char:FindFirstChild("Gun")
+	if not tool then
+		StarterGui:SetCore("SendNotification", {
+			Title = "Nehemías";
+			Text = "⚠️ Necesitas el arma";
+			Duration = 2;
+		})
+		return
+	end
+
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer and getRole(plr) == "Murderer" and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+			local args = {
+				[1] = plr.Character.HumanoidRootPart.Position
+			}
+			tool:Activate()
+			ReplicatedStorage:WaitForChild("ShootEvent"):FireServer(unpack(args))
+		end
+	end
 end)
 
-shootBtn.MouseButton1Click:Connect(function()
-    local murderer, sheriff = getRoles()
-    if not murderer or not sheriff then
-        StarterGui:SetCore("SendNotification", {Title="Nehemías"; Text="No se detectó murderer o sheriff"; Duration=2})
-        return
-    end
-    if LocalPlayer ~= sheriff then
-        StarterGui:SetCore("SendNotification", {Title="Nehemías"; Text="Solo el sheriff puede disparar"; Duration=2})
-        return
-    end
-    local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")
-    if not tool then
-        StarterGui:SetCore("SendNotification", {Title="Nehemías"; Text="Necesitás el arma"; Duration=2})
-        return
-    end
-    tool:Activate()
-    local ev = ReplicatedStorage:FindFirstChild("ShootEvent")
-    if ev and murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart") then
-        ev:FireServer(murderer.Character.HumanoidRootPart.Position)
-    end
+-- Toggle Auto Disparo
+autoShootToggle.MouseButton1Click:Connect(function()
+	autoShootEnabled = not autoShootEnabled
+	autoShootToggle.Text = "Auto Disparo: " .. (autoShootEnabled and "ON" or "OFF")
+	autoShootToggle.BackgroundColor3 = autoShootEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(100, 100, 100)
+	shootButton.Visible = autoShootEnabled
+end)
+
+-- Minimizar GUI
+local minimized = false
+minimize.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	for _, child in pairs(frame:GetChildren()) do
+		if child ~= title and child ~= minimize then
+			child.Visible = not minimized
+		end
+	end
+	frame.Size = minimized and UDim2.new(0, 230, 0, 25) or UDim2.new(0, 230, 0, 120)
+	minimize.Text = minimized and "+" or "-"
 end)
