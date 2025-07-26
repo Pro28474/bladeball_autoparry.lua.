@@ -4,92 +4,90 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 
-repeat wait() until LocalPlayer.Character
+repeat wait() until LocalPlayer.Character and LocalPlayer:FindFirstChild("PlayerGui")
 
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Crear ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "NehemiasMM2"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
+-- Frame principal
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 260, 0, 200)
+frame.Size = UDim2.new(0, 280, 0, 220)
 frame.Position = UDim2.new(0.05, 0, 0.2, 0)
-frame.BackgroundColor3 = Color3.fromRGB(35,35,35)
+frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
 frame.Parent = screenGui
 
+-- Título
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1,0,0,30)
-title.Position = UDim2.new(0,0,0,0)
-title.Text = "Nehemías"
+title.Size = UDim2.new(1, 0, 0, 35)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+title.TextColor3 = Color3.new(1, 1, 1)
 title.Font = Enum.Font.Freedoka
-title.TextSize = 20
-title.BackgroundColor3 = Color3.fromRGB(60,60,60)
-title.TextColor3 = Color3.new(1,1,1)
+title.TextSize = 22
+title.Text = "Nehemías"
 title.Parent = frame
 
-local espBtn = Instance.new("TextButton")
-espBtn.Size = UDim2.new(0.9,0,0,30)
-espBtn.Position = UDim2.new(0.05,0,0,40)
-espBtn.Text = "ESP: OFF"
-espBtn.Font = Enum.Font.Freedoka
-espBtn.TextSize = 16
-espBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
-espBtn.TextColor3 = Color3.new(1,1,1)
-espBtn.Parent = frame
+-- Función para crear botones fácil
+local function createButton(text, y)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0.9, 0, 0, 40)
+	btn.Position = UDim2.new(0.05, 0, 0, y)
+	btn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Font = Enum.Font.Freedoka
+	btn.TextSize = 18
+	btn.Text = text
+	btn.Parent = frame
+	return btn
+end
 
-local timeBtn = Instance.new("TextButton")
-timeBtn.Size = UDim2.new(0.9,0,0,30)
-timeBtn.Position = UDim2.new(0.05,0,0,80)
-timeBtn.Text = "Tiempo de ronda: OFF"
-timeBtn.Font = Enum.Font.Freedoka
-timeBtn.TextSize = 16
-timeBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
-timeBtn.TextColor3 = Color3.new(1,1,1)
-timeBtn.Parent = frame
+local espBtn = createButton("ESP: OFF", 45)
+local timeBtn = createButton("Tiempo de ronda: OFF", 95)
+local autoBtn = createButton("Auto Disparo: OFF", 145)
 
-local autoBtn = Instance.new("TextButton")
-autoBtn.Size = UDim2.new(0.9,0,0,30)
-autoBtn.Position = UDim2.new(0.05,0,0,120)
-autoBtn.Text = "Auto Disparo: OFF"
-autoBtn.Font = Enum.Font.Freedoka
-autoBtn.TextSize = 16
-autoBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
-autoBtn.TextColor3 = Color3.new(1,1,1)
-autoBtn.Parent = frame
-
+-- Label de tiempo arriba pantalla
 local timeLabel = Instance.new("TextLabel")
-timeLabel.Size = UDim2.new(0,160,0,40)
-timeLabel.Position = UDim2.new(0.5,-80,0.05,0)
+timeLabel.Size = UDim2.new(0, 180, 0, 50)
+timeLabel.Position = UDim2.new(0.5, -90, 0.05, 0)
 timeLabel.BackgroundTransparency = 1
 timeLabel.Font = Enum.Font.Freedoka
-timeLabel.TextSize = 28
+timeLabel.TextSize = 32
 timeLabel.TextColor3 = Color3.new(1,1,1)
 timeLabel.TextStrokeColor3 = Color3.new(0,0,0)
 timeLabel.TextStrokeTransparency = 0
 timeLabel.Visible = false
 timeLabel.Parent = screenGui
 
+-- Botón flotante disparar
 local shootBtn = Instance.new("TextButton")
-shootBtn.Size = UDim2.new(0,110,0,40)
-shootBtn.Position = UDim2.new(0.5,-55,0.7,0)
-shootBtn.Text = "Disparar"
-shootBtn.Font = Enum.Font.Freedoka
-shootBtn.TextSize = 18
-shootBtn.BackgroundColor3 = Color3.fromRGB(0,120,255)
+shootBtn.Size = UDim2.new(0, 120, 0, 45)
+shootBtn.Position = UDim2.new(0.5, -60, 0.7, 0)
+shootBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
 shootBtn.TextColor3 = Color3.new(1,1,1)
+shootBtn.Font = Enum.Font.Freedoka
+shootBtn.TextSize = 20
+shootBtn.Text = "Disparar"
 shootBtn.Visible = false
 shootBtn.Active = true
 shootBtn.Draggable = true
 shootBtn.Parent = screenGui
 
+-- Variables de estado
 local espOn, timeOn, autoOn = false, false, false
 local espTrack = {}
 local roundStart = 0
 local roundDuration = 150
 local inRound = false
+
+-- Funciones básicas (getRoles, roleColor, clearESP, updateESP)
 
 local function getRoles()
 	local murderer, sheriff = nil, nil
@@ -127,30 +125,35 @@ end
 local function updateESP()
 	clearESP()
 	for _,plr in pairs(Players:GetPlayers()) do
-		if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+		if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character:FindFirstChild("Head") then
 			local clr = roleColor(plr)
-			local bi = Instance.new("BillboardGui", plr.Character)
+			local bi = Instance.new("BillboardGui")
 			bi.Size = UDim2.new(0,100,0,40)
-			bi.Adornee = plr.Character:FindFirstChild("Head")
+			bi.Adornee = plr.Character.Head
 			bi.AlwaysOnTop = true
-			local lbl = Instance.new("TextLabel", bi)
-			lbl.Size = UDim2.new(1,1)
+			bi.Parent = plr.Character
+
+			local lbl = Instance.new("TextLabel")
+			lbl.Size = UDim2.new(1,0,1,0)
 			lbl.BackgroundTransparency = 1
 			lbl.Text = plr.Name
 			lbl.TextColor3 = clr
 			lbl.Font = Enum.Font.Freedoka
 			lbl.TextScaled = true
+			lbl.Parent = bi
+
 			table.insert(espTrack, bi)
 
 			for _,part in pairs(plr.Character:GetChildren()) do
 				if part:IsA("BasePart") then
-					local box = Instance.new("BoxHandleAdornment", part)
+					local box = Instance.new("BoxHandleAdornment")
 					box.Adornee = part
 					box.AlwaysOnTop = true
 					box.ZIndex = 5
 					box.Size = part.Size + Vector3.new(0.05,0.05,0.05)
 					box.Transparency = 0.5
 					box.Color3 = clr
+					box.Parent = part
 					table.insert(espTrack, box)
 				end
 			end
@@ -158,6 +161,7 @@ local function updateESP()
 	end
 end
 
+-- Actualizar tiempo ronda en RenderStepped
 RunService.RenderStepped:Connect(function()
 	if inRound and timeOn then
 		local now = os.time()
@@ -166,14 +170,13 @@ RunService.RenderStepped:Connect(function()
 		local m = math.floor(remaining / 60)
 		local s = remaining % 60
 		timeLabel.Text = string.format("%d:%02d", m, s)
-		if remaining <= 0 then
-			timeLabel.Visible = false
-		else
-			timeLabel.Visible = true
-		end
+		timeLabel.Visible = remaining > 0
+	else
+		timeLabel.Visible = false
 	end
 end)
 
+-- Detectar inicio y fin de ronda (Map aparece y desaparece)
 workspace.ChildAdded:Connect(function(c)
 	if c.Name == "Map" then
 		wait(1)
@@ -192,6 +195,7 @@ workspace.ChildRemoved:Connect(function(c)
 	end
 end)
 
+-- Actualizar ESP al entrar/salir jugadores
 Players.PlayerAdded:Connect(function()
 	if espOn and inRound then updateESP() end
 end)
@@ -199,6 +203,8 @@ end)
 Players.PlayerRemoving:Connect(function()
 	if espOn and inRound then updateESP() end
 end)
+
+-- Botones
 
 espBtn.MouseButton1Click:Connect(function()
 	espOn = not espOn
@@ -211,11 +217,7 @@ timeBtn.MouseButton1Click:Connect(function()
 	timeOn = not timeOn
 	timeBtn.Text = "Tiempo de ronda: " .. (timeOn and "ON" or "OFF")
 	timeBtn.BackgroundColor3 = timeOn and Color3.fromRGB(0,170,0) or Color3.fromRGB(100,100,100)
-	if timeOn and inRound then
-		timeLabel.Visible = true
-	else
-		timeLabel.Visible = false
-	end
+	timeLabel.Visible = timeOn and inRound
 end)
 
 autoBtn.MouseButton1Click:Connect(function()
@@ -225,6 +227,7 @@ autoBtn.MouseButton1Click:Connect(function()
 	shootBtn.Visible = autoOn
 end)
 
+-- Funcionalidad botón disparar
 shootBtn.MouseButton1Click:Connect(function()
 	local murderer, sheriff = getRoles()
 	if not murderer or not sheriff then
