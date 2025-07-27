@@ -1,273 +1,33 @@
-local CoreGui = game:GetService("CoreGui")
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local lp = Players.LocalPlayer
+-- INK Game GUI Script - Directo para Delta Executor
 
-local gui = Instance.new("ScreenGui", CoreGui)
-gui.Name = "InkGameGUI"
-gui.ResetOnSpawn = false
+local Players = game:GetService("Players") local LocalPlayer = Players.LocalPlayer local Mouse = LocalPlayer:GetMouse() local UserInputService = game:GetService("UserInputService") local TweenService = game:GetService("TweenService") local CoreGui = game:GetService("CoreGui")
 
--- Botón flotante para mostrar/ocultar GUI
-local toggleBtn = Instance.new("TextButton", gui)
-toggleBtn.Size = UDim2.new(0, 120, 0, 30)
-toggleBtn.Position = UDim2.new(0, 20, 0, 100)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
-toggleBtn.Text = "Mostrar GUI"
-toggleBtn.TextColor3 = Color3.new(1, 1, 1)
-toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.TextSize = 16
-toggleBtn.Active = true
-toggleBtn.Draggable = true
+-- Crear GUI principal local ScreenGui = Instance.new("ScreenGui", CoreGui) ScreenGui.Name = "InkGUI"
 
--- Frame principal con scroll para botones
-local main = Instance.new("Frame", gui)
-main.Name = "MainFrame"
-main.Size = UDim2.new(0, 300, 0, 400)
-main.Position = UDim2.new(0.05, 0, 0.2, 0)
-main.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-main.Visible = false
-main.Active = true
-main.Draggable = true
+local MainFrame = Instance.new("Frame") MainFrame.Size = UDim2.new(0, 450, 0, 280) MainFrame.Position = UDim2.new(0.3, 0, 0.2, 0) MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25) MainFrame.BorderSizePixel = 0 MainFrame.Parent = ScreenGui MainFrame.ClipsDescendants = true MainFrame.Active = true MainFrame.Draggable = true
 
-local frameCorner = Instance.new("UICorner", main)
-frameCorner.CornerRadius = UDim.new(0, 10)
+local UICorner = Instance.new("UICorner", MainFrame) UICorner.CornerRadius = UDim.new(0, 12)
 
-local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1, 0, 0, 40)
-title.Position = UDim2.new(0, 0, 0, 0)
-title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-title.Text = "INK Game GUI"
-title.TextColor3 = Color3.new(1, 1, 1)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 20
-local titleCorner = Instance.new("UICorner", title)
-titleCorner.CornerRadius = UDim.new(0, 10)
+local UIGrid = Instance.new("UIGridLayout", MainFrame) UIGrid.CellSize = UDim2.new(0, 140, 0, 40) UIGrid.CellPadding = UDim2.new(0, 10, 0, 10) UIGrid.FillDirection = Enum.FillDirection.Horizontal UIGrid.HorizontalAlignment = Enum.HorizontalAlignment.Center UIGrid.VerticalAlignment = Enum.VerticalAlignment.Top UIGrid.SortOrder = Enum.SortOrder.LayoutOrder
 
-local scroll = Instance.new("ScrollingFrame", main)
-scroll.Size = UDim2.new(1, -20, 1, -60)
-scroll.Position = UDim2.new(0, 10, 0, 50)
-scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-scroll.BackgroundTransparency = 1
-scroll.ScrollBarThickness = 6
+-- Scroll horizontal MainFrame.CanvasSize = UDim2.new(3, 0, 0, 280) MainFrame.ClipsDescendants = true MainFrame.AutomaticCanvasSize = Enum.AutomaticSize.None MainFrame.ScrollingEnabled = true MainFrame.ScrollBarThickness = 4 MainFrame.VerticalScrollBarInset = Enum.ScrollBarInset.Always
 
-local layout = Instance.new("UIListLayout", scroll)
-layout.Padding = UDim.new(0, 12)
-layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-layout.SortOrder = Enum.SortOrder.LayoutOrder
+-- Sección: Luz Roja local luzRoja = Instance.new("TextButton") luzRoja.Text = "TP Final Luz Roja" luzRoja.BackgroundColor3 = Color3.fromRGB(255, 50, 50) luzRoja.TextColor3 = Color3.new(1,1,1) luzRoja.Parent = MainFrame luzRoja.MouseButton1Click:Connect(function() local finish = workspace:FindFirstChild("EndZone") or workspace:FindFirstChild("Finish") if finish then LocalPlayer.Character:PivotTo(finish.CFrame + Vector3.new(0, 3, 0)) end end)
 
--- Función para crear secciones
-local function createSection(name)
-	local sectionFrame = Instance.new("Frame", scroll)
-	sectionFrame.Size = UDim2.new(1, 0, 0, 90)
-	sectionFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-	sectionFrame.ClipsDescendants = true
-	local sectionCorner = Instance.new("UICorner", sectionFrame)
-	sectionCorner.CornerRadius = UDim.new(0, 10)
+-- Sección: Dalgona local dalgona = Instance.new("TextButton") dalgona.Text = "Auto Dalgona" dalgona.BackgroundColor3 = Color3.fromRGB(255, 170, 0) dalgona.TextColor3 = Color3.new(1,1,1) dalgona.Parent = MainFrame dalgona.MouseButton1Click:Connect(function() for _,v in pairs(getgc(true)) do if typeof(v) == "function" and getfenv(v).script.Name == "Dalgona" then pcall(function() v() end) end end end)
 
-	local label = Instance.new("TextLabel", sectionFrame)
-	label.Text = name
-	label.Size = UDim2.new(1, 0, 0, 30)
-	label.Position = UDim2.new(0, 0, 0, 0)
-	label.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = 18
-	local labelCorner = Instance.new("UICorner", label)
-	labelCorner.CornerRadius = UDim.new(0, 10)
+-- Sección: Escondidas ESP local espBtn = Instance.new("TextButton") espBtn.Text = "ESP Escondidas" espBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255) espBtn.TextColor3 = Color3.new(1,1,1) espBtn.Parent = MainFrame espBtn.MouseButton1Click:Connect(function() for _,v in pairs(Players:GetPlayers()) do if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("Head") then local box = Instance.new("BoxHandleAdornment", v.Character.Head) box.Size = Vector3.new(4,6,2) box.Adornee = v.Character box.AlwaysOnTop = true box.ZIndex = 10 box.Color3 = Color3.fromRGB(255,0,0) box.Transparency = 0.5 end end end)
 
-	local buttonsFrame = Instance.new("Frame", sectionFrame)
-	buttonsFrame.Size = UDim2.new(1, -20, 1, -40)
-	buttonsFrame.Position = UDim2.new(0, 10, 0, 40)
-	buttonsFrame.BackgroundTransparency = 1
+-- Sección: Cuerda local cuerda = Instance.new("TextButton") cuerda.Text = "Remover Cuerda" cuerda.BackgroundColor3 = Color3.fromRGB(128, 64, 255) cuerda.TextColor3 = Color3.new(1,1,1) cuerda.Parent = MainFrame cuerda.MouseButton1Click:Connect(function() local rope = workspace:FindFirstChild("Rope") if rope then rope:Destroy() end end)
 
-	local btnLayout = Instance.new("UIListLayout", buttonsFrame)
-	btnLayout.Padding = UDim.new(0, 8)
-	btnLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	btnLayout.SortOrder = Enum.SortOrder.LayoutOrder
+-- Botón ganar automático (Tug o similar) local autoBoton = Instance.new("TextButton") autoBoton.Text = "Auto Presionar Botón" autoBoton.BackgroundColor3 = Color3.fromRGB(50, 200, 80) autoBoton.TextColor3 = Color3.new(1,1,1) autoBoton.Parent = MainFrame autoBoton.MouseButton1Click:Connect(function() while true do task.wait(0.1) game:GetService("VirtualInputManager"):SendKeyEvent(true, "E", false, game) end end)
 
-	return buttonsFrame, sectionFrame
-end
+-- Safe zone local tpSafe = Instance.new("TextButton") tpSafe.Text = "TP Safe Zone" tpSafe.BackgroundColor3 = Color3.fromRGB(200, 200, 50) tpSafe.TextColor3 = Color3.new(1,1,1) tpSafe.Parent = MainFrame tpSafe.MouseButton1Click:Connect(function() LocalPlayer.Character:PivotTo(CFrame.new(0,200,0)) end)
 
--- Función para crear botones dentro de una sección
-local function createButton(parent, text, color, callback)
-	local btn = Instance.new("TextButton", parent)
-	btn.Size = UDim2.new(1, 0, 0, 30)
-	btn.BackgroundColor3 = color
-	btn.Text = text
-	btn.TextColor3 = Color3.new(1, 1, 1)
-	btn.Font = Enum.Font.GothamBold
-	btn.TextSize = 14
-	local corner = Instance.new("UICorner", btn)
-	corner.CornerRadius = UDim.new(0, 12)
-	btn.MouseButton1Click:Connect(callback)
-	return btn
-end
+-- Glass: Reveal local revealGlass = Instance.new("TextButton") revealGlass.Text = "Reveal Glass" revealGlass.BackgroundColor3 = Color3.fromRGB(50, 255, 255) revealGlass.TextColor3 = Color3.new(0,0,0) revealGlass.Parent = MainFrame revealGlass.MouseButton1Click:Connect(function() for _,v in pairs(workspace:GetDescendants()) do if v:IsA("Part") and v.Name == "Glass" then v.Transparency = 0.1 v.Color = Color3.fromRGB(0,255,0) end end end)
 
--- Secciones y botones
+-- Salta la cuerda - TP local jumpEnd = Instance.new("TextButton") jumpEnd.Text = "TP Final Cuerda" jumpEnd.BackgroundColor3 = Color3.fromRGB(255, 100, 200) jumpEnd.TextColor3 = Color3.new(1,1,1) jumpEnd.Parent = MainFrame jumpEnd.MouseButton1Click:Connect(function() local pos = workspace:FindFirstChild("EndZone") or workspace:FindFirstChild("Goal") if pos then LocalPlayer.Character:PivotTo(pos.CFrame + Vector3.new(0,3,0)) end end)
 
--- Luz Roja
-local luzRojaButtons, luzRojaSection = createSection("Luz Roja")
-createButton(luzRojaButtons, "Teleport Final Luz Roja", Color3.fromRGB(255, 50, 50), function()
-	local map = workspace:FindFirstChild("RedLightGreenLightGame")
-	if map and map:FindFirstChild("Finish") then
-		lp.Character.HumanoidRootPart.CFrame = map.Finish.CFrame + Vector3.new(0,3,0)
-	end
-end)
+-- Salta la cuerda - auto saltar local autoJump = Instance.new("TextButton") autoJump.Text = "Auto Completar Cuerda" autoJump.BackgroundColor3 = Color3.fromRGB(255, 140, 240) autoJump.TextColor3 = Color3.new(0,0,0) autoJump.Parent = MainFrame autoJump.MouseButton1Click:Connect(function() while true do task.wait(0.7) LocalPlayer.Character.Humanoid.Jump = true end end)
 
--- DalGona
-local dalGonaButtons, dalGonaSection = createSection("DalGona")
-createButton(dalGonaButtons, "Auto Completar DalGona", Color3.fromRGB(255, 150, 50), function()
-	-- Aquí el script para completar la galleta, ejemplo:
-	local success, err = pcall(function()
-		local dalgonaGame = workspace:FindFirstChild("DalGonaGame")
-		if dalgonaGame then
-			local galleta = dalgonaGame:FindFirstChild("Galleta")
-			if galleta and galleta:FindFirstChild("Complete") then
-				galleta.Complete.Value = true
-			end
-		end
-	end)
-	if not success then
-		warn("Error al auto completar DalGona:", err)
-	end
-end)
-
--- Escondida
-local escondidaButtons, escondidaSection = createSection("Escondida")
-createButton(escondidaButtons, "ESP Escondida (Rojo/Azul)", Color3.fromRGB(255, 0, 0), function()
-	-- ESP para escondida (ambos lados)
-	-- Aquí puedes añadir el código para crear los highlights o BillboardGui según el equipo
-	-- Este es solo un ejemplo:
-	for _, player in pairs(Players:GetPlayers()) do
-		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-			local highlight = player.Character:FindFirstChild("HighlightESP")
-			if not highlight then
-				highlight = Instance.new("Highlight")
-				highlight.Name = "HighlightESP"
-				highlight.Parent = player.Character
-			end
-			-- Cambiar color según equipo (ficticio ejemplo)
-			if player.Team == game:GetService("Teams"):FindFirstChild("Red") then
-				highlight.FillColor = Color3.fromRGB(255, 0, 0)
-				highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
-			elseif player.Team == game:GetService("Teams"):FindFirstChild("Blue") then
-				highlight.FillColor = Color3.fromRGB(0, 0, 255)
-				highlight.OutlineColor = Color3.fromRGB(0, 0, 255)
-			end
-		end
-	end
-end)
-createButton(escondidaButtons, "Wallhack + Rapidez", Color3.fromRGB(0, 150, 255), function()
-	-- Aquí código para activar wallhack y rapidez (ejemplo)
-	local character = lp.Character
-	if character then
-		-- Aumentar transparencia de muros (ejemplo)
-		for _, part in pairs(workspace:GetDescendants()) do
-			if part:IsA("BasePart") and part.Transparency < 0.5 and part.Name == "Wall" then
-				part.Transparency = 0.5
-			end
-		end
-		-- Rapidez
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		if humanoid then
-			humanoid.WalkSpeed = 32
-		end
-	end
-end)
-
--- Tug of War
-local tugButtons, tugSection = createSection("Tug of War")
-createButton(tugButtons, "Retirar cuerda", Color3.fromRGB(150, 75, 0), function()
-	local rope = workspace:FindFirstChild("Rope")
-	if rope then
-		rope:Destroy()
-	end
-end)
-createButton(tugButtons, "Auto Tocar Botón", Color3.fromRGB(0, 200, 150), function()
-	local button = workspace:FindFirstChild("WinButton")
-	if button and button:IsA("BasePart") then
-		fireclickdetector(button.ClickDetector)
-	end
-end)
-
--- Safe Zone
-local safeButtons, safeSection = createSection("Safe Zone")
-createButton(safeButtons, "TP a Safe Zone", Color3.fromRGB(100, 255, 150), function()
-	local safeZone = workspace:FindFirstChild("SafeZone") or workspace:FindFirstChild("SafeZoneArea")
-	if safeZone and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-		lp.Character.HumanoidRootPart.CFrame = safeZone.CFrame + Vector3.new(0, 5, 0)
-	end
-end)
-
--- Cristales
-local crystalButtons, crystalSection = createSection("Cristales")
-createButton(crystalButtons, "Reveal Glass", Color3.fromRGB(0, 255, 255), function()
-	-- Revelar cristales correctos ejemplo
-	for _, glass in pairs(workspace:GetDescendants()) do
-		if glass.Name == "Glass" and glass:IsA("BasePart") then
-			glass.Transparency = 0.3
-			glass.BrickColor = BrickColor.new("Bright yellow")
-		end
-	end
-end)
-
--- Salta la cuerda
-local jumpRopeButtons, jumpRopeSection = createSection("Salta la cuerda")
-createButton(jumpRopeButtons, "Teleport Final Salta la Cuerda", Color3.fromRGB(200, 150, 100), function()
-	local map = workspace:FindFirstChild("JumpRopeMap") or workspace:FindFirstChild("JumpRopeGame")
-	if map and map:FindFirstChild("EndZone") then
-		lp.Character.HumanoidRootPart.CFrame = map.EndZone.CFrame + Vector3.new(0,3,0)
-	end
-end)
-
-local autoJumpActive = false
-createButton(jumpRopeButtons, "Auto Completar Salta la Cuerda", Color3.fromRGB(150, 200, 100), function()
-	autoJumpActive = not autoJumpActive
-	if autoJumpActive then
-		coroutine.wrap(function()
-			local humanoid = lp.Character and lp.Character:FindFirstChildOfClass("Humanoid")
-			while autoJumpActive do
-				if humanoid then
-					lp.Character.HumanoidRootPart.CFrame = lp.Character.HumanoidRootPart.CFrame * CFrame.new(0,0,0.5)
-					humanoid.Jump = true
-				end
-				task.wait(0.6)
-			end
-		end)()
-	end
-end)
-
--- Movimiento / Utilidades
-local movementButtons, movementSection = createSection("Movimiento")
-
-local infiniteJumpActive = false
-local infiniteJumpConnection
-createButton(movementButtons, "Saltar Infinitamente", Color3.fromRGB(180, 100, 255), function()
-	infiniteJumpActive = not infiniteJumpActive
-	if infiniteJumpActive then
-		infiniteJumpConnection = UserInputService.JumpRequest:Connect(function()
-			if infiniteJumpActive then
-				local humanoid = lp.Character and lp.Character:FindFirstChildOfClass("Humanoid")
-				if humanoid then
-					humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-				end
-			end
-		end)
-	else
-		if infiniteJumpConnection then
-			infiniteJumpConnection:Disconnect()
-			infiniteJumpConnection = nil
-		end
-	end
-end)
-
--- Mostrar/Ocultar GUI
-toggleBtn.MouseButton1Click:Connect(function()
-	main.Visible = not main.Visible
-	toggleBtn.Text = main.Visible and "Ocultar GUI" or "Mostrar GUI"
-end)
-
--- Ajustar scroll
-layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-	scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
-end)
+-- Salto infinito local infJump = Instance.new("TextButton") infJump.Text = "Salto Infinito" infJump.BackgroundColor3 = Color3.fromRGB(100, 255, 100) infJump.TextColor3 = Color3.new(0,0,0) infJump.Parent = MainFrame infJump.MouseButton1Click:Connect(function() UserInputService.JumpRequest:Connect(function() LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping") end) end)
